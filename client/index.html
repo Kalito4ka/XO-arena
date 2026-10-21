@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>XO-arena</title>
+</head>
+
+<body>
+    <h1>XO-arena</h1>
+
+    <p>Серверная часть на PHP.</p>
+
+    <button id="check-button" type="button">
+        Проверить подключение
+    </button>
+
+    <p id="status" role="status"></p>
+
+    <script>
+        const button = document.querySelector('#check-button');
+        const status = document.querySelector('#status');
+
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            status.textContent = 'Проверяем подключение...';
+
+            try {
+                const response = await fetch('/api/health/database', {
+                    signal: AbortSignal.timeout(10000),
+                });
+
+                if (!response.ok) {
+                    throw new Error(
+                        `Сервер вернул ошибку ${response.status}`
+                    );
+                }
+
+                const data = await response.json();
+
+                status.textContent =
+                    data.database === 'connected'
+                        ? 'PHP работает, PostgreSQL подключён.'
+                        : 'Не удалось подтвердить подключение.';
+            } catch (error) {
+                status.textContent = `Ошибка: ${error.message}`;
+            } finally {
+                button.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

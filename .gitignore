@@ -1,0 +1,20 @@
+# Локальные настройки
+.env
+.env.*
+!.env.example
+
+# Зависимости
+node_modules/
+
+# Результаты сборки
+dist/
+coverage/
+
+# Логи
+*.log
+
+# Редакторы и ОС
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
