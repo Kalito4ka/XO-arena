@@ -1,0 +1,146 @@
+* {
+    box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+body {
+    margin: 0;
+    background: #11151f;
+    color: #eef2ff;
+    font-family: system-ui, sans-serif;
+    line-height: 1.5;
+}
+
+.container {
+    width: min(100% - 32px, 720px);
+    margin: 40px auto;
+}
+
+h1 {
+    margin: 0;
+    font-size: clamp(36px, 8vw, 60px);
+}
+
+h2 {
+    margin-top: 0;
+}
+
+.eyebrow {
+    margin-bottom: 8px;
+    color: #a6ed81;
+}
+
+.muted {
+    color: #b5bed2;
+}
+
+.card {
+    margin-top: 24px;
+    padding: 24px;
+    background: #1c2333;
+    border: 1px solid #39445d;
+    border-radius: 18px;
+}
+
+button,
+input {
+    font: inherit;
+}
+
+button {
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 10px;
+    background: #a6ed81;
+    color: #14210d;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+button:focus-visible,
+input:focus-visible {
+    outline: 3px solid #86baff;
+    outline-offset: 3px;
+}
+
+input {
+    width: 100%;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #6b7896;
+    border-radius: 10px;
+    background: #11151f;
+    color: #eef2ff;
+}
+
+.join-form,
+.invitation {
+    display: grid;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.message {
+    min-height: 24px;
+    overflow-wrap: anywhere;
+    color: #b9edaa;
+}
+
+.message.error {
+    color: #ffb4b4;
+}
+
+.turn-info {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: min(100%, 360px);
+    margin: 24px auto;
+}
+
+.cell {
+    aspect-ratio: 1;
+    padding: 0;
+    border: 2px solid #53617f;
+    background: #11151f;
+    color: #eef2ff;
+    font-size: clamp(32px, 10vw, 56px);
+}
+
+.cell:disabled {
+    opacity: 1;
+}
+
+.cell[data-symbol="X"] {
+    color: #86baff;
+}
+
+.cell[data-symbol="O"] {
+    color: #ffbd79;
+}
+
+.cell.winning {
+    border-color: #a6ed81;
+    background: #283e2a;
+}
+
+footer {
+    margin-top: 24px;
+}
+
+a {
+    color: #b7d5ff;
+}

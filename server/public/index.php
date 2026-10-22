@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../src/database.php';
 
+require_once __DIR__ . '/../src/Http/games.php';
+
 function sendJson(array $data, int $status = 200): never
 {
     http_response_code($status);
@@ -25,6 +27,16 @@ $path = parse_url(
     $_SERVER['REQUEST_URI'] ?? '/',
     PHP_URL_PATH
 );
+
+if (
+    is_string($path)
+    && (
+        $path === '/api/games'
+        || str_starts_with($path, '/api/games/')
+    )
+) {
+    handleGamesApi($path, $method);
+}
 
 $knownPaths = [
     '/api/health',

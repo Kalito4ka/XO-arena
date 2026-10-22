@@ -3,54 +3,87 @@
 
 <head>
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>XO-arena</title>
+    <title>XO-arena — классическая игра</title>
+
+    <link rel="stylesheet" href="/style.css">
+
+    <script type="module" src="/js/app.js"></script>
 </head>
 
 <body>
-    <h1>XO-arena</h1>
+    <main class="container">
+        <header>
+            <p class="eyebrow">Сетевая игра на PHP</p>
 
-    <p>Серверная часть на PHP.</p>
+            <h1>XO-arena</h1>
 
-    <button id="check-button" type="button">
-        Проверить подключение
-    </button>
+            <p class="muted">
+                Классические крестики-нолики для двух игроков.
+            </p>
+        </header>
 
-    <p id="status" role="status"></p>
+        <section class="card" aria-labelledby="start-title">
+            <h2 id="start-title">Начать игру</h2>
 
-    <script>
-        const button = document.querySelector('#check-button');
-        const status = document.querySelector('#status');
+            <button id="create-button" type="button" disabled>
+                Создать новую партию
+            </button>
 
-        button.addEventListener('click', async () => {
-            button.disabled = true;
-            status.textContent = 'Проверяем подключение...';
+            <form id="join-form" class="join-form">
+                <label for="join-input">
+                    Ссылка приглашения или код партии
+                </label>
 
-            try {
-                const response = await fetch('/api/health/database', {
-                    signal: AbortSignal.timeout(10000),
-                });
+                <input id="join-input" name="invitation" type="text" placeholder="Вставьте ссылку или код"
+                    autocomplete="off" spellcheck="false" required>
 
-                if (!response.ok) {
-                    throw new Error(
-                        `Сервер вернул ошибку ${response.status}`
-                    );
-                }
+                <button id="join-button" type="submit" disabled>
+                    Присоединиться
+                </button>
+            </form>
+        </section>
 
-                const data = await response.json();
+        <p id="message" class="message" role="status" aria-live="polite"></p>
 
-                status.textContent =
-                    data.database === 'connected'
-                        ? 'PHP работает, PostgreSQL подключён.'
-                        : 'Не удалось подтвердить подключение.';
-            } catch (error) {
-                status.textContent = `Ошибка: ${error.message}`;
-            } finally {
-                button.disabled = false;
-            }
-        });
-    </script>
+        <section id="game-panel" class="card" aria-labelledby="game-title" hidden>
+            <h2 id="game-title">Классическая партия</h2>
+
+            <p id="player-info"></p>
+
+            <p id="turn-info" class="turn-info" aria-live="polite"></p>
+
+            <div id="board" class="board" role="group" aria-label="Игровое поле три на три"></div>
+
+            <div class="invitation">
+                <label for="invite-link">
+                    Пригласить второго игрока
+                </label>
+
+                <input id="invite-link" type="text" readonly>
+
+                <button id="copy-button" type="button">
+                    Скопировать ссылку
+                </button>
+            </div>
+
+            <p class="muted">
+                Для проверки двух игроков используйте разные браузеры.
+            </p>
+        </section>
+
+        <footer class="muted">
+            <a href="/api/health" target="_blank" rel="noopener">
+                Проверка сервера
+            </a>
+            ·
+            <a href="/api/health/database" target="_blank" rel="noopener">
+                Проверка базы данных
+            </a>
+        </footer>
+    </main>
 </body>
 
 </html>
