@@ -24,6 +24,7 @@ services:
     volumes:
       - ./server/public:/var/www/html/public:ro
       - ./server/src:/var/www/html/src:ro
+      - php_sessions:/var/lib/php/sessions
     depends_on:
       db:
         condition: service_healthy
@@ -46,6 +47,6 @@ services:
       retries: 10
       start_period: 10s
     restart: unless-stopped
-
 volumes:
   postgres_data:
+  php_sessions:

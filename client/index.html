@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="/style.css">
 
     <script type="module" src="/js/app.js"></script>
+
+    <script type="module" src="/js/auth.js"></script>
 </head>
 
 <body>
@@ -24,6 +26,119 @@
                 Классические крестики-нолики для двух игроков.
             </p>
         </header>
+
+        <section class="card" aria-labelledby="auth-title">
+            <h2 id="auth-title">Аккаунт</h2>
+
+            <p id="auth-message" class="message" role="status"></p>
+
+            <div id="auth-guest" hidden>
+                <fieldset id="auth-fields" disabled>
+                    <legend>Вход и регистрация</legend>
+
+                    <form id="login-form" class="auth-form">
+                        <h3>Войти</h3>
+
+                        <label for="login-nickname">Никнейм</label>
+
+                        <input
+                            id="login-nickname"
+                            name="nickname"
+                            type="text"
+                            minlength="3"
+                            maxlength="24"
+                            autocomplete="username"
+                            required
+                        >
+
+                        <label for="login-password">Пароль</label>
+
+                        <input
+                            id="login-password"
+                            name="password"
+                            type="password"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                        <button type="submit">Войти</button>
+                    </form>
+
+                    <details>
+                        <summary>Создать аккаунт</summary>
+
+                        <form id="register-form" class="auth-form">
+                            <label for="register-nickname">Никнейм</label>
+
+                            <input
+                                id="register-nickname"
+                                name="nickname"
+                                type="text"
+                                minlength="3"
+                                maxlength="24"
+                                pattern="[A-Za-z0-9_]{3,24}"
+                                autocomplete="username"
+                                aria-describedby="nickname-hint"
+                                required
+                            >
+
+                            <p id="nickname-hint" class="muted">
+                                3–24 латинские буквы, цифры или знак _.
+                            </p>
+
+                            <label for="register-password">Пароль</label>
+
+                            <input
+                                id="register-password"
+                                name="password"
+                                type="password"
+                                minlength="10"
+                                maxlength="72"
+                                autocomplete="new-password"
+                                aria-describedby="password-hint"
+                                required
+                            >
+
+                            <p id="password-hint" class="muted">
+                                Не менее 10 символов и не более 72 байт.
+                                Кириллица занимает больше одного байта на символ.
+                            </p>
+
+                            <label for="register-confirm">
+                                Повторите пароль
+                            </label>
+
+                            <input
+                                id="register-confirm"
+                                name="confirmation"
+                                type="password"
+                                autocomplete="new-password"
+                                required
+                            >
+
+                            <button type="submit">
+                                Зарегистрироваться
+                            </button>
+                        </form>
+                    </details>
+                </fieldset>
+            </div>
+
+            <div id="auth-user" hidden>
+                <p>
+                    Вы вошли как
+                    <strong id="current-nickname"></strong>.
+                </p>
+
+                <button id="logout-button" type="button" disabled>
+                    Выйти
+                </button>
+            </div>
+
+            <button id="auth-refresh" class="secondary" type="button">
+                Обновить данные аккаунта
+            </button>
+        </section>
 
         <section class="card" aria-labelledby="start-title">
             <h2 id="start-title">Начать игру</h2>

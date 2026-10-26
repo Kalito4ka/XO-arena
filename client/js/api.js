@@ -1,8 +1,11 @@
+// функция для отправки запросов из браузера на PHP-сервер
+
 export async function request(
     path,
     {
         method = 'GET',
         token = null,
+        csrfToken = null,
         body = undefined,
     } = {},
 ) {
@@ -12,6 +15,10 @@ export async function request(
 
     if (token !== null) {
         headers['X-Player-Token'] = token;
+    }
+
+    if (csrfToken !== null) {
+        headers['X-CSRF-Token'] = csrfToken;
     }
 
     if (body !== undefined) {
@@ -24,6 +31,7 @@ export async function request(
         response = await fetch(path, {
             method,
             headers,
+            credentials: 'same-origin',
             body: body === undefined
                 ? undefined
                 : JSON.stringify(body),
@@ -32,8 +40,8 @@ export async function request(
         });
     } catch {
         throw new Error(
-            'Сервер не ответил. Проверьте соединение. '
-            + 'Не повторяйте ход до обновления состояния.',
+            'Сервер не ответил. Проверьте соединение '
+            + 'и обновите данные перед повторной попыткой.',
         );
     }
 
@@ -49,9 +57,13 @@ export async function request(
     }
 
     if (!response.ok) {
-        throw new Error(
+        const error = new Error(
             data.message ?? `Ошибка HTTP ${response.status}`,
         );
+
+        error.status = response.status;
+
+        throw error;
     }
 
     return data;

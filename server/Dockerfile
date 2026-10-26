@@ -5,6 +5,11 @@ RUN apt-get update \
     && docker-php-ext-install pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
+RUN install -d -m 0700 \
+    -o www-data \
+    -g www-data \
+    /var/lib/php/sessions
+
 WORKDIR /var/www/html
 
 COPY apache/000-default.conf /etc/apache2/sites-available/000-default.conf

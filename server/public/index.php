@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../src/database.php';
+ini_set('zend.exception_ignore_args', '1');
 
+require_once __DIR__ . '/../src/database.php';
 require_once __DIR__ . '/../src/Http/games.php';
+require_once __DIR__ . '/../src/Http/auth.php';
 
 function sendJson(array $data, int $status = 200): never
 {
@@ -27,6 +29,16 @@ $path = parse_url(
     $_SERVER['REQUEST_URI'] ?? '/',
     PHP_URL_PATH
 );
+
+if (
+    is_string($path)
+    && (
+        $path === '/api/auth'
+        || str_starts_with($path, '/api/auth/')
+    )
+) {
+    handleAuthApi($path, $method);
+}
 
 if (
     is_string($path)

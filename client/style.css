@@ -144,3 +144,38 @@ footer {
 a {
     color: #b7d5ff;
 }
+
+fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+legend {
+    padding: 0;
+    color: #b5bed2;
+}
+
+.auth-form {
+    display: grid;
+    gap: 12px;
+    margin: 16px 0 24px;
+}
+
+.auth-form h3,
+.auth-form p {
+    margin: 0;
+}
+
+summary {
+    cursor: pointer;
+    color: #b7d5ff;
+}
+
+.secondary {
+    margin-top: 16px;
+    border: 1px solid #6b7896;
+    background: transparent;
+    color: #eef2ff;
+}
