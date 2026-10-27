@@ -7,6 +7,11 @@ import {
     getLastGameId,
 } from './storage.js';
 
+import {
+    accountReady,
+    getAccountSnapshot,
+} from './auth.js';
+
 const ID_PATTERN = /^[a-f0-9]{32}$/;
 
 const createButton = document.querySelector('#create-button');
@@ -29,6 +34,26 @@ let game = null;
 let busy = false;
 let synced = false;
 let storageReady = false;
+
+let accountRevision = 0;
+
+function clearCurrentGame() {
+    player = null;
+    game = null;
+    synced = false;
+}
+
+window.addEventListener('xo:account-changed', () => {
+    accountRevision++;
+
+    clearCurrentGame();
+    render();
+
+    setMessage(
+        'Аккаунт изменён. Откройте партию из списка '
+        + '«Мои партии» или по приглашению.',
+    );
+});
 
 function setMessage(text, error = false) {
     if (message.textContent !== text) {
@@ -112,7 +137,12 @@ function render() {
         return;
     }
 
-    setText(playerInfo, `Вы играете за ${player.symbol}.`);
+    setText(
+        playerInfo,
+        player.symbol === null
+            ? 'Определяем сторону участника...'
+            : `Вы играете за ${player.symbol}.`,
+    );
 
     inviteLink.value = invitationUrl(player.id);
 
@@ -173,6 +203,8 @@ async function run(action) {
         return;
     }
 
+    const revision = accountRevision;
+
     busy = true;
     render();
 
@@ -181,22 +213,51 @@ async function run(action) {
     } catch (error) {
         synced = false;
 
+        if (error.status === 401 || error.status === 403) {
+            clearCurrentGame();
+        }
+
         setMessage(error.message, true);
     } finally {
+        if (revision !== accountRevision) {
+            clearCurrentGame();
+
+            setMessage(
+                'Аккаунт изменён. Откройте нужную партию заново.',
+            );
+        }
+
         busy = false;
         render();
     }
 }
 
 function applyState(data) {
+    const wasFinished = game?.roomStatus === 'finished';
+
     game = data.game;
     player.symbol = data.symbol;
     synced = true;
+
+    if (!wasFinished && game.roomStatus === 'finished') {
+        window.dispatchEvent(
+            new Event('xo:games-updated'),
+        );
+    }
 }
 
 function enterGame(id, data) {
+    const ownerId = data.game.userIds[data.symbol];
+
     const savedPlayer = {
-        token: data.playerToken,
+        token: ownerId === null
+            ? (
+                data.playerToken
+                ?? getPlayer(id)?.token
+                ?? null
+            )
+            : null,
+
         symbol: data.symbol,
     };
 
@@ -216,6 +277,10 @@ function enterGame(id, data) {
         '',
         invitationUrl(id),
     );
+
+    window.dispatchEvent(
+        new Event('xo:games-updated'),
+    );
 }
 
 async function refreshGame() {
@@ -232,11 +297,26 @@ async function refreshGame() {
     }
 }
 
+async function gamePost(path, body = undefined) {
+    const account = getAccountSnapshot();
+
+    if (!account.ready || account.csrfToken === null) {
+        throw new Error(
+            'Сначала обновите данные аккаунта.',
+        );
+    }
+
+    return request(path, {
+        method: 'POST',
+        token: player?.token ?? null,
+        csrfToken: account.csrfToken,
+        body,
+    });
+}
+
 createButton.addEventListener('click', () => {
     void run(async () => {
-        const data = await request('/api/games', {
-            method: 'POST',
-        });
+        const data = await gamePost('/api/games');
 
         enterGame(data.game.id, data);
 
@@ -247,32 +327,41 @@ createButton.addEventListener('click', () => {
 joinForm.addEventListener('submit', (event) => {
     event.preventDefault();
 
+    const invitation = joinInput.value;
+
     void run(async () => {
-        const id = parseGameId(joinInput.value);
+        const id = parseGameId(invitation);
         const savedPlayer = getPlayer(id);
 
-        if (savedPlayer !== null) {
+        // Сначала проверяем, не являемся ли мы
+        // уже участником по аккаунту или гостевому ключу.
+        try {
             const data = await request(`/api/games/${id}`, {
-                token: savedPlayer.token,
+                token: savedPlayer?.token ?? null,
             });
 
             enterGame(id, {
                 ...data,
-                playerToken: savedPlayer.token,
+                playerToken: savedPlayer?.token ?? null,
             });
 
             setMessage('Вы вернулись в свою партию.');
 
             return;
+        } catch (error) {
+            if (error.status !== 401 && error.status !== 403) {
+                throw error;
+            }
         }
 
-        const data = await request(`/api/games/${id}/join`, {
-            method: 'POST',
-        });
+        // Если участия ещё нет, пробуем занять место O.
+        const data = await gamePost(
+            `/api/games/${id}/join`,
+        );
 
         enterGame(id, data);
 
-        setMessage('Вы присоединились к партии за O.');
+        setMessage(`Вы присоединились за ${data.symbol}.`);
     });
 });
 
@@ -286,15 +375,11 @@ async function sendMove(cell) {
     }
 
     await run(async () => {
-        const data = await request(
+        const data = await gamePost(
             `/api/games/${player.id}/moves`,
             {
-                method: 'POST',
-                token: player.token,
-                body: {
-                    cell,
-                    version: game.version,
-                },
+                cell,
+                version: game.version,
             },
         );
 
@@ -336,6 +421,8 @@ async function poll() {
 
 async function boot() {
     try {
+        await accountReady;
+
         ensureStorage();
 
         storageReady = true;
@@ -359,8 +446,9 @@ async function boot() {
         joinInput.value = id;
 
         const savedPlayer = getPlayer(id);
+        const account = getAccountSnapshot();
 
-        if (savedPlayer === null) {
+        if (savedPlayer === null && account.user === null) {
             setMessage(
                 'Приглашение открыто. Нажмите «Присоединиться».',
             );
@@ -370,7 +458,8 @@ async function boot() {
 
         player = {
             id,
-            ...savedPlayer,
+            token: savedPlayer?.token ?? null,
+            symbol: savedPlayer?.symbol ?? null,
         };
 
         await run(refreshGame);

@@ -36,8 +36,13 @@ export function getPlayer(id) {
         if (
             player === null
             || typeof player !== 'object'
-            || typeof player.token !== 'string'
-            || !/^[a-f0-9]{64}$/.test(player.token)
+            || (
+                player.token !== null
+                && (
+                    typeof player.token !== 'string'
+                    || !/^[a-f0-9]{64}$/.test(player.token)
+                )
+            )
             || !['X', 'O'].includes(player.symbol)
         ) {
             return null;

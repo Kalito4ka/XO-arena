@@ -13,6 +13,8 @@
     <script type="module" src="/js/app.js"></script>
 
     <script type="module" src="/js/auth.js"></script>
+
+    <script type="module" src="/js/history.js"></script>
 </head>
 
 <body>
@@ -41,25 +43,13 @@
 
                         <label for="login-nickname">Никнейм</label>
 
-                        <input
-                            id="login-nickname"
-                            name="nickname"
-                            type="text"
-                            minlength="3"
-                            maxlength="24"
-                            autocomplete="username"
-                            required
-                        >
+                        <input id="login-nickname" name="nickname" type="text" minlength="3" maxlength="24"
+                            autocomplete="username" required>
 
                         <label for="login-password">Пароль</label>
 
-                        <input
-                            id="login-password"
-                            name="password"
-                            type="password"
-                            autocomplete="current-password"
-                            required
-                        >
+                        <input id="login-password" name="password" type="password" autocomplete="current-password"
+                            required>
 
                         <button type="submit">Войти</button>
                     </form>
@@ -70,17 +60,9 @@
                         <form id="register-form" class="auth-form">
                             <label for="register-nickname">Никнейм</label>
 
-                            <input
-                                id="register-nickname"
-                                name="nickname"
-                                type="text"
-                                minlength="3"
-                                maxlength="24"
-                                pattern="[A-Za-z0-9_]{3,24}"
-                                autocomplete="username"
-                                aria-describedby="nickname-hint"
-                                required
-                            >
+                            <input id="register-nickname" name="nickname" type="text" minlength="3" maxlength="24"
+                                pattern="[A-Za-z0-9_]{3,24}" autocomplete="username" aria-describedby="nickname-hint"
+                                required>
 
                             <p id="nickname-hint" class="muted">
                                 3–24 латинские буквы, цифры или знак _.
@@ -88,16 +70,8 @@
 
                             <label for="register-password">Пароль</label>
 
-                            <input
-                                id="register-password"
-                                name="password"
-                                type="password"
-                                minlength="10"
-                                maxlength="72"
-                                autocomplete="new-password"
-                                aria-describedby="password-hint"
-                                required
-                            >
+                            <input id="register-password" name="password" type="password" minlength="10" maxlength="72"
+                                autocomplete="new-password" aria-describedby="password-hint" required>
 
                             <p id="password-hint" class="muted">
                                 Не менее 10 символов и не более 72 байт.
@@ -108,13 +82,8 @@
                                 Повторите пароль
                             </label>
 
-                            <input
-                                id="register-confirm"
-                                name="confirmation"
-                                type="password"
-                                autocomplete="new-password"
-                                required
-                            >
+                            <input id="register-confirm" name="confirmation" type="password" autocomplete="new-password"
+                                required>
 
                             <button type="submit">
                                 Зарегистрироваться
@@ -187,6 +156,30 @@
             <p class="muted">
                 Для проверки двух игроков используйте разные браузеры.
             </p>
+        </section>
+
+        <section class="card" aria-labelledby="history-title">
+            <h2 id="history-title">Мои партии</h2>
+
+            <button id="history-refresh" type="button">
+                Обновить список
+            </button>
+
+            <p id="history-message" class="message" role="status"></p>
+
+            <ul id="history-list" class="history-list"></ul>
+
+            <div class="history-navigation">
+                <button id="history-prev" type="button" disabled>
+                    Назад
+                </button>
+
+                <span id="history-page">Страница 1</span>
+
+                <button id="history-next" type="button" disabled>
+                    Далее
+                </button>
+            </div>
         </section>
 
         <footer class="muted">

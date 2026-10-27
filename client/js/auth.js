@@ -43,9 +43,29 @@ function render() {
 // охраняет полученные от сервера данные пользователя 
 // и CSRF-токен, затем отмечает, что данные готовы
 function applyAccount(data) {
+    const previousUserId = user?.id ?? null;
+    const wasReady = ready;
+
     user = data.user;
     csrfToken = data.csrfToken;
     ready = true;
+
+    if (
+        wasReady
+        && previousUserId !== (user?.id ?? null)
+    ) {
+        window.dispatchEvent(
+            new Event('xo:account-changed'),
+        );
+    }
+}
+
+export function getAccountSnapshot() {
+    return {
+        user,
+        csrfToken,
+        ready,
+    };
 }
 
 // общая обёртка для операций
@@ -165,4 +185,4 @@ refreshButton.addEventListener('click', () => {
     void run(refreshAccount);
 });
 
-void run(refreshAccount);
+export const accountReady = run(refreshAccount);

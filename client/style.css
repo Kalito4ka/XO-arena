@@ -179,3 +179,27 @@ summary {
     background: transparent;
     color: #eef2ff;
 }
+
+.history-list {
+    display: grid;
+    gap: 16px;
+    padding: 0;
+    list-style: none;
+}
+
+.history-list li {
+    padding: 16px;
+    border: 1px solid #53617f;
+    border-radius: 12px;
+}
+
+.history-list p {
+    margin: 8px 0 0;
+}
+
+.history-navigation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}

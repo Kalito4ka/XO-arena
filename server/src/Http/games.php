@@ -8,6 +8,7 @@ use App\Service\ClassicGameService;
 require_once __DIR__ . '/../Game/ClassicGame.php';
 require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/../Service/ClassicGameService.php';
+require_once __DIR__ . '/../Auth/gameAccount.php';
 
 function requireMethod(string $actual, string $allowed): void
 {
@@ -21,9 +22,13 @@ function requireMethod(string $actual, string $allowed): void
     }
 }
 
-function readPlayerToken(): string
+function readPlayerToken(): ?string
 {
-    $token = $_SERVER['HTTP_X_PLAYER_TOKEN'] ?? '';
+    $token = $_SERVER['HTTP_X_PLAYER_TOKEN'] ?? null;
+
+    if ($token === null) {
+        return null;
+    }
 
     if (
         !is_string($token)
@@ -31,7 +36,7 @@ function readPlayerToken(): string
     ) {
         throw new ApiException(
             401,
-            'Передайте ключ игрока в заголовке X-Player-Token.'
+            'Некорректный формат гостевого ключа.'
         );
     }
 
@@ -103,60 +108,87 @@ function readMoveData(): array
 function handleGamesApi(string $path, string $method): never
 {
     try {
-        if ($path === '/api/games') {
-            requireMethod($method, 'POST');
+        $isCreate = $path === '/api/games';
+        $isMine = $path === '/api/games/mine';
 
-            $service = new ClassicGameService(
-                getDatabaseConnection()
+        $id = null;
+        $action = '';
+        $page = 1;
+
+        if ($isCreate) {
+            requireMethod($method, 'POST');
+        } elseif ($isMine) {
+            requireMethod($method, 'GET');
+
+            $page = filter_var(
+                $_GET['page'] ?? 1,
+                FILTER_VALIDATE_INT,
+                [
+                    'options' => [
+                        'min_range' => 1,
+                        'max_range' => 10000,
+                    ],
+                ]
             );
 
+            if ($page === false) {
+                throw new ApiException(
+                    422,
+                    'Некорректный номер страницы.'
+                );
+            }
+        } else {
+            $matched = preg_match(
+                '~^/api/games/([a-f0-9]{32})(?:/(join|moves))?$~D',
+                $path,
+                $matches
+            );
+
+            if ($matched !== 1) {
+                throw new ApiException(404, 'Маршрут не найден.');
+            }
+
+            $id = $matches[1];
+            $action = $matches[2] ?? '';
+
+            requireMethod(
+                $method,
+                $action === '' ? 'GET' : 'POST'
+            );
+        }
+
+        $db = getDatabaseConnection();
+
+        $userId = readGameAccount(
+            $db,
+            $method === 'POST'
+        );
+
+        $service = new ClassicGameService($db, $userId);
+
+        if ($isCreate) {
             sendJson($service->create(), 201);
         }
 
-        $matched = preg_match(
-            '~^/api/games/([a-f0-9]{32})(?:/(join|moves))?$~D',
-            $path,
-            $matches
-        );
-
-        if ($matched !== 1) {
-            throw new ApiException(404, 'Маршрут не найден.');
+        if ($isMine) {
+            sendJson($service->mine($page));
         }
 
-        $id = $matches[1];
-        $action = $matches[2] ?? '';
-
-        requireMethod(
-            $method,
-            $action === '' ? 'GET' : 'POST'
-        );
-
-        $token = null;
-        $moveData = null;
-
-        if ($action !== 'join') {
-            $token = readPlayerToken();
-        }
-
-        if ($action === 'moves') {
-            $moveData = readMoveData();
-        }
-
-        $service = new ClassicGameService(
-            getDatabaseConnection()
-        );
+        $token = readPlayerToken();
 
         if ($action === 'join') {
             sendJson($service->join($id));
         }
 
         if ($action === 'moves') {
+            $data = readMoveData();
+
             sendJson(
                 $service->move(
                     $id,
                     $token,
-                    $moveData['cell'],
-                    $moveData['version']
+                    $data['cell'],
+                    $data['version']
                 )
             );
         }
@@ -173,7 +205,13 @@ function handleGamesApi(string $path, string $method): never
             422
         );
     } catch (Throwable $error) {
-        error_log((string) $error);
+        error_log(sprintf(
+            '%s: %s in %s:%d',
+            get_class($error),
+            $error->getMessage(),
+            $error->getFile(),
+            $error->getLine()
+        ));
 
         sendJson(
             ['message' => 'Внутренняя ошибка сервера.'],
