@@ -38,7 +38,7 @@ final class GameTimeoutService
             "SELECT 1
              FROM games
              WHERE id = :id
-               AND updated_at + INTERVAL '60 seconds'
+               AND updated_at + INTERVAL '30 seconds'
                    <= clock_timestamp()"
         );
 
@@ -93,7 +93,7 @@ final class GameTimeoutService
              WHERE mode = 'classic'
                AND status = 'playing'
                AND o_token_hash IS NOT NULL
-               AND updated_at + INTERVAL '60 seconds'
+               AND updated_at + INTERVAL '30 seconds'
                    <= clock_timestamp()
              ORDER BY updated_at, id
              LIMIT 100"

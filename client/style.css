@@ -235,3 +235,13 @@ summary {
     padding: 10px;
     font: inherit;
 }
+
+.turn-timer {
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.turn-timer.warning {
+    color: #b42318;
+}

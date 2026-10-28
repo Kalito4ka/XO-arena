@@ -23,6 +23,7 @@ const message = document.querySelector('#message');
 const gamePanel = document.querySelector('#game-panel');
 const playerInfo = document.querySelector('#player-info');
 const turnInfo = document.querySelector('#turn-info');
+const turnTimer = document.querySelector('#turn-timer');
 
 const board = document.querySelector('#board');
 const inviteLink = document.querySelector('#invite-link');
@@ -36,11 +37,13 @@ let synced = false;
 let storageReady = false;
 
 let accountRevision = 0;
+let turnTimerDeadline = null;
 
 function clearCurrentGame() {
     player = null;
     game = null;
     synced = false;
+    turnTimerDeadline = null;
 }
 
 window.addEventListener('xo:account-changed', () => {
@@ -126,10 +129,54 @@ const cells = Array.from({ length: 9 }, (_, index) => {
     return button;
 });
 
+// показывает оставшееся время хода по последнему ответу сервера
+function renderTurnTimer() {
+    const visible = (
+        player !== null
+        && game !== null
+        && synced
+        && game.roomStatus === 'active'
+        && turnTimerDeadline !== null
+    );
+
+    turnTimer.hidden = !visible;
+
+    if (!visible) {
+        turnTimer.textContent = '';
+        turnTimer.classList.remove('warning');
+
+        return;
+    }
+
+    const remaining = Math.max(
+        0,
+        Math.ceil(
+            (turnTimerDeadline - performance.now()) / 1000,
+        ),
+    );
+
+    turnTimer.classList.toggle('warning', remaining <= 10);
+
+    setText(
+        turnTimer,
+        remaining > 0
+            ? `На ход ${game.state.currentPlayer} осталось: ${remaining} с`
+            : 'Время истекло. Ожидаем результат сервера...',
+    );
+}
+
 function render() {
     createButton.disabled = busy || !storageReady;
     joinButton.disabled = busy || !storageReady;
     joinInput.disabled = busy || !storageReady;
+
+    gamePanel.hidden = player === null;
+
+    renderTurnTimer();
+
+    if (player === null) {
+        return;
+    }
 
     gamePanel.hidden = player === null;
 
@@ -157,7 +204,7 @@ function render() {
     } else if (game.state.status === 'won') {
         if (game.endReason === 'timeout') {
             turnText = game.state.winner === player.symbol
-                ? 'Вы победили: соперник не сделал ход за 60 секунд.'
+                ? 'Вы победили: соперник не сделал ход за 30 секунд.'
                 : 'Вы проиграли: время на ход истекло.';
         } else {
             turnText = game.state.winner === player.symbol
@@ -241,9 +288,16 @@ async function run(action) {
 function applyState(data) {
     const wasFinished = game?.roomStatus === 'finished';
 
-    game = data.game;
+        game = data.game;
     player.symbol = data.symbol;
     synced = true;
+
+    turnTimerDeadline = (
+        game.roomStatus === 'active'
+        && typeof game.remainingSeconds === 'number'
+    )
+        ? performance.now() + game.remainingSeconds * 1000
+        : null;
 
     if (!wasFinished && game.roomStatus === 'finished') {
         window.dispatchEvent(
@@ -479,3 +533,4 @@ async function boot() {
 }
 
 void boot();
+window.setInterval(renderTurnTimer, 250);

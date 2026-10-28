@@ -83,12 +83,13 @@ final class ClassicGameService
             $token = bin2hex(random_bytes(32));
             $tokenHash = hash('sha256', $token);
 
-            $statement = $this->db->prepare(
+                        $statement = $this->db->prepare(
                 'UPDATE games
                 SET o_token_hash = :token_hash,
                     o_user_id = :user_id,
                     updated_at = clock_timestamp()
-                WHERE id = :id'
+                WHERE id = :id
+                RETURNING *'
             );
 
             $statement->execute([
@@ -97,8 +98,7 @@ final class ClassicGameService
                 'id' => $id,
             ]);
 
-            $row['o_token_hash'] = $tokenHash;
-            $row['o_user_id'] = $this->userId;
+            $row = $statement->fetch();
 
             return [
                 'game' => $this->view($row),
@@ -182,7 +182,8 @@ final class ClassicGameService
                     'UPDATE games
                      SET moves = CAST(:moves AS jsonb),
                          updated_at = clock_timestamp()
-                     WHERE id = :id'
+                     WHERE id = :id
+                     RETURNING *'
                 );
 
                 $statement->execute([
@@ -190,7 +191,7 @@ final class ClassicGameService
                     'id' => $id,
                 ]);
 
-                $row['moves'] = $json;
+                $row = $statement->fetch();
 
                 $row = (new GameResultService($this->db))->record(
                         $row,
@@ -436,6 +437,29 @@ final class ClassicGameService
         return [$game, $moves];
     }
 
+    // рассчитывает оставшееся время хода по часам базы данных
+    private function remainingTurnSeconds(array $row): float
+    {
+        $statement = $this->db->prepare(
+            "SELECT GREATEST(
+                0,
+                EXTRACT(
+                    EPOCH FROM (
+                        CAST(:updated_at AS timestamptz)
+                        + INTERVAL '30 seconds'
+                        - clock_timestamp()
+                    )
+                )
+            )"
+        );
+
+        $statement->execute([
+            'updated_at' => $row['updated_at'],
+        ]);
+
+        return (float) $statement->fetchColumn();
+    }
+
     private function view(array $row): array
     {
         [$game, $moves] = $this->restore($row);
@@ -457,6 +481,10 @@ final class ClassicGameService
             $roomStatus = 'finished';
         }
 
+        $remainingSeconds = $roomStatus === 'active'
+            ? $this->remainingTurnSeconds($row)
+            : null;
+
         return [
             'id' => $row['id'],
             'roomStatus' => $roomStatus,
@@ -476,6 +504,7 @@ final class ClassicGameService
             'createdAt' => $row['created_at'],
             'finishedAt' => $row['finished_at'],
             'endReason' => $row['end_reason'],
+            'remainingSeconds' => $remainingSeconds,
         ];
     }
 
