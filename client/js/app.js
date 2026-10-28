@@ -12,6 +12,8 @@ import {
     getAccountSnapshot,
 } from './auth.js';
 
+import { createUltimateBoard } from './ultimateBoard.js';
+
 const ID_PATTERN = /^[a-f0-9]{32}$/;
 
 const createButton = document.querySelector('#create-button');
@@ -28,6 +30,12 @@ const turnTimer = document.querySelector('#turn-timer');
 const board = document.querySelector('#board');
 const inviteLink = document.querySelector('#invite-link');
 const copyButton = document.querySelector('#copy-button');
+
+const modeSelect = document.querySelector('#game-mode');
+const gameTitle = document.querySelector('#game-title');
+
+const ultimateRoot = document.querySelector('#ultimate-board');
+const ultimateHint = document.querySelector('#ultimate-hint');
 
 let player = null;
 let game = null;
@@ -108,7 +116,6 @@ function isMyTurn() {
         player !== null
         && game !== null
         && synced
-        && game.state.mode === 'classic'
         && game.roomStatus === 'active'
         && game.state.status === 'playing'
         && game.state.currentPlayer === player.symbol
@@ -129,6 +136,13 @@ const cells = Array.from({ length: 9 }, (_, index) => {
 
     return button;
 });
+
+const renderUltimateBoard = createUltimateBoard(
+    ultimateRoot,
+    (boardIndex, cellIndex) => {
+        void sendMove(cellIndex, boardIndex);
+    },
+);
 
 // показывает оставшееся время хода по последнему ответу сервера
 function renderTurnTimer() {
@@ -166,8 +180,10 @@ function renderTurnTimer() {
     );
 }
 
+// показывает состояние партии и поле соответствующего режима
 function render() {
     createButton.disabled = busy || !storageReady;
+    modeSelect.disabled = busy || !storageReady;
     joinButton.disabled = busy || !storageReady;
     joinInput.disabled = busy || !storageReady;
 
@@ -179,11 +195,16 @@ function render() {
         return;
     }
 
-    gamePanel.hidden = player === null;
+    const ultimate = game?.state.mode === 'ultimate';
 
-    if (player === null) {
-        return;
-    }
+    board.hidden = ultimate;
+    ultimateRoot.hidden = !ultimate;
+    ultimateHint.hidden = !ultimate;
+
+    setText(
+        gameTitle,
+        ultimate ? 'Ультимативная партия' : 'Классическая партия',
+    );
 
     setText(
         playerInfo,
@@ -193,20 +214,6 @@ function render() {
     );
 
     inviteLink.value = invitationUrl(player.id);
-
-    const ultimate = game?.state.mode === 'ultimate';
-
-    board.hidden = ultimate;
-
-    if (ultimate) {
-        setText(
-            turnInfo,
-            'Ультимативная партия сохранена на сервере. '
-            + 'Игровое поле этого режима добавим следующим этапом.',
-        );
-
-        return;
-    }
 
     let turnText;
 
@@ -219,7 +226,7 @@ function render() {
     } else if (game.state.status === 'won') {
         if (game.endReason === 'timeout') {
             turnText = game.state.winner === player.symbol
-                ? 'Вы победили: соперник не сделал ход за 30 секунд.'
+                ? `Вы победили: соперник не сделал ход за ${game.state.mode === 'classic' ? 15 : 30} секунд.`
                 : 'Вы проиграли: время на ход истекло.';
         } else {
             turnText = game.state.winner === player.symbol
@@ -232,9 +239,25 @@ function render() {
         turnText = isMyTurn()
             ? 'Ваш ход.'
             : `Ход соперника: ${game.state.currentPlayer}.`;
+
+        if (ultimate) {
+            turnText += game.state.requiredBoard === null
+                ? ' Можно выбрать любое открытое поле.'
+                : ` Играть нужно на поле ${game.state.requiredBoard + 1}.`;
+        }
     }
 
     setText(turnInfo, turnText);
+
+    if (ultimate) {
+        renderUltimateBoard(game.state, {
+            active: synced && game.roomStatus === 'active',
+            canMove: isMyTurn(),
+            busy,
+        });
+
+        return;
+    }
 
     const state = game?.state;
     const winningLine = state?.winningLine ?? [];
@@ -390,8 +413,12 @@ async function gamePost(path, body = undefined) {
 }
 
 createButton.addEventListener('click', () => {
+    const mode = modeSelect.value;
+
     void run(async () => {
-        const data = await gamePost('/api/games');
+        const data = await gamePost(
+            `/api/games?mode=${encodeURIComponent(mode)}`,
+        );
 
         enterGame(data.game.id, data);
 
@@ -440,22 +467,48 @@ joinForm.addEventListener('submit', (event) => {
     });
 });
 
-async function sendMove(cell) {
-    if (
-        busy
-        || !isMyTurn()
+// отправляет ход в формате текущего режима
+async function sendMove(cell, boardIndex = null) {
+    if (busy || !isMyTurn()) {
+        return;
+    }
+
+    const ultimate = game.state.mode === 'ultimate';
+
+    if (ultimate) {
+        if (
+            !Number.isInteger(boardIndex)
+            || boardIndex < 0
+            || boardIndex > 8
+            || game.state.boardStatuses[boardIndex] !== 'playing'
+            || (
+                game.state.requiredBoard !== null
+                && game.state.requiredBoard !== boardIndex
+            )
+            || game.state.boards[boardIndex][cell] !== null
+        ) {
+            return;
+        }
+    } else if (
+        boardIndex !== null
         || game.state.board[cell] !== null
     ) {
         return;
     }
 
+    const body = {
+        cell,
+        version: game.version,
+    };
+
+    if (ultimate) {
+        body.board = boardIndex;
+    }
+
     await run(async () => {
         const data = await gamePost(
             `/api/games/${player.id}/moves`,
-            {
-                cell,
-                version: game.version,
-            },
+            body,
         );
 
         applyState(data);

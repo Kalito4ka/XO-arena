@@ -525,7 +525,10 @@ final class ClassicGameService
                 EXTRACT(
                     EPOCH FROM (
                         CAST(:updated_at AS timestamptz)
-                        + INTERVAL '30 seconds'
+                        + CASE CAST(:mode AS text)
+                            WHEN 'classic' THEN INTERVAL '15 seconds'
+                            ELSE INTERVAL '30 seconds'
+                          END
                         - clock_timestamp()
                     )
                 )
@@ -534,6 +537,7 @@ final class ClassicGameService
 
         $statement->execute([
             'updated_at' => $row['updated_at'],
+            'mode' => $row['mode'],
         ]);
 
         return (float) $statement->fetchColumn();

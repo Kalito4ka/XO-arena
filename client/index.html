@@ -6,7 +6,7 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>XO-arena — классическая игра</title>
+    <title>XO-arena — крестики-нолики онлайн</title>
 
     <link rel="stylesheet" href="/style.css">
 
@@ -14,7 +14,7 @@
 
     <script type="module" src="/js/auth.js"></script>
 
-    <script type="module" src="/js/history.js"></script>
+    <script type="module" src="/js/history.js?v=2"></script>
 
     <script type="module" src="/js/leaderboard.js"></script>
 </head>
@@ -27,7 +27,8 @@
             <h1>XO-arena</h1>
 
             <p class="muted">
-                Классические крестики-нолики для двух игроков.
+                Классические и ультимативные крестики-нолики
+                для двух игроков.
             </p>
         </header>
 
@@ -114,6 +115,18 @@
         <section class="card" aria-labelledby="start-title">
             <h2 id="start-title">Начать игру</h2>
 
+            <label for="game-mode">Режим новой партии</label>
+
+            <select id="game-mode" class="mode-select">
+                <option value="classic">
+                    Классика
+                </option>
+
+                <option value="ultimate">
+                    Ультимативный
+                </option>
+            </select>
+
             <button id="create-button" type="button" disabled>
                 Создать новую партию
             </button>
@@ -144,6 +157,20 @@
             <p id="turn-timer" class="turn-timer" hidden></p>
 
             <div id="board" class="board" role="group" aria-label="Игровое поле три на три"></div>
+
+            <p id="ultimate-hint" class="muted" hidden>
+                Клетка вашего хода определяет поле для соперника.
+                Если оно закрыто, соперник выбирает любое открытое поле.
+                Выиграйте три маленьких поля в ряд.
+            </p>
+
+            <div
+                id="ultimate-board"
+                class="ultimate-board"
+                role="group"
+                aria-label="Ультимативное игровое поле"
+                hidden
+            ></div>
 
             <div class="invitation">
                 <label for="invite-link">

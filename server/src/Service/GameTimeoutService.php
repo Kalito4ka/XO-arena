@@ -38,7 +38,10 @@ final class GameTimeoutService
             "SELECT 1
              FROM games
              WHERE id = :id
-               AND updated_at + INTERVAL '30 seconds'
+               AND updated_at + CASE mode
+                   WHEN 'classic' THEN INTERVAL '15 seconds'
+                   ELSE INTERVAL '30 seconds'
+               END
                    <= clock_timestamp()"
         );
 
@@ -93,7 +96,10 @@ final class GameTimeoutService
              WHERE mode IN ('classic', 'ultimate')
                AND status = 'playing'
                AND o_token_hash IS NOT NULL
-               AND updated_at + INTERVAL '30 seconds'
+               AND updated_at + CASE mode
+                   WHEN 'classic' THEN INTERVAL '15 seconds'
+                   ELSE INTERVAL '30 seconds'
+               END
                    <= clock_timestamp()
              ORDER BY updated_at, id
              LIMIT 100"

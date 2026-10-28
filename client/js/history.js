@@ -19,6 +19,11 @@ const resultNames = {
     draw: 'Ничья',
 };
 
+const modeNames = {
+    classic: 'Классика',
+    ultimate: 'Ультимативный',
+};
+
 let requestNumber = 0;
 
 // показывает партии в указанном списке
@@ -43,9 +48,7 @@ function renderItems(target, items) {
 
         link.href = url.href;
 
-        const modeName = item.mode === 'ultimate'
-            ? 'Ультимативный'
-            : 'Классика';
+        const modeName = modeNames[item.mode] ?? 'Неизвестный режим';
 
         link.textContent =
             `${modeName} · вы ${item.symbol} · `

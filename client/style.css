@@ -249,3 +249,88 @@ summary {
 .board[hidden] {
     display: none;
 }
+
+.mode-select {
+    display: block;
+    width: 100%;
+    margin: 8px 0 16px;
+    padding: 12px;
+    border: 1px solid #6b7896;
+    border-radius: 10px;
+    background: #11151f;
+    color: #eef2ff;
+    font: inherit;
+}
+
+.mode-select:focus-visible {
+    outline: 3px solid #86baff;
+    outline-offset: 3px;
+}
+
+.ultimate-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 24px 0;
+}
+
+.ultimate-field {
+    min-width: 0;
+    padding: 8px;
+    border: 2px solid #53617f;
+    border-radius: 12px;
+    background: #151b28;
+}
+
+.ultimate-field-title {
+    margin: 0 0 8px;
+    min-height: 36px;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.ultimate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.ultimate-cell {
+    min-width: 0;
+    width: 100%;
+    border-radius: 5px;
+    font-size: clamp(16px, 4vw, 32px);
+}
+
+.ultimate-field.available {
+    border-color: #86baff;
+    background: #202f48;
+}
+
+.ultimate-field.closed {
+    background: #252936;
+}
+
+.ultimate-field.winning {
+    border-color: #a6ed81;
+    background: #283e2a;
+}
+
+@media (max-width: 480px) {
+    .ultimate-board {
+        gap: 5px;
+    }
+
+    .ultimate-field {
+        padding: 4px;
+    }
+
+    .ultimate-grid {
+        gap: 2px;
+    }
+
+    .ultimate-field-title {
+        font-size: 10px;
+    }
+}
