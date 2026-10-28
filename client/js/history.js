@@ -43,8 +43,12 @@ function renderItems(target, items) {
 
         link.href = url.href;
 
+        const modeName = item.mode === 'ultimate'
+            ? 'Ультимативный'
+            : 'Классика';
+
         link.textContent =
-            `Классика · вы ${item.symbol} · `
+            `${modeName} · вы ${item.symbol} · `
             + (resultNames[item.result] ?? item.result);
 
         const finished = item.finishedAt !== null;

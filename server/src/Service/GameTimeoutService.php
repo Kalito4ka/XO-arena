@@ -27,7 +27,7 @@ final class GameTimeoutService
         }
 
         if (
-            $row['mode'] !== 'classic'
+            !in_array($row['mode'], ['classic', 'ultimate'], true)
             || $row['status'] !== 'playing'
             || $row['o_token_hash'] === null
         ) {
@@ -90,7 +90,7 @@ final class GameTimeoutService
         $statement = $this->db->query(
             "SELECT id
              FROM games
-             WHERE mode = 'classic'
+             WHERE mode IN ('classic', 'ultimate')
                AND status = 'playing'
                AND o_token_hash IS NOT NULL
                AND updated_at + INTERVAL '30 seconds'

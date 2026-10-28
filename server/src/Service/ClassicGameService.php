@@ -1,10 +1,13 @@
 <?php
 
+// Обслуживает режимы
+
 declare(strict_types=1);
 
 namespace App\Service;
 
 use App\Game\ClassicGame;
+use App\Game\UltimateGame;
 use App\Http\ApiException;
 use PDO;
 use RuntimeException;
@@ -19,19 +22,38 @@ final class ClassicGameService
     ) {
     }
 
-    public function create(): array
+    // создаёт партию выбранного режима и выдаёт доступ первому игроку
+    public function create(string $mode = 'classic'): array
     {
+        if (!in_array($mode, ['classic', 'ultimate'], true)) {
+            throw new ApiException(
+                422,
+                'Допустимые режимы: classic или ultimate.'
+            );
+        }
+
         $id = bin2hex(random_bytes(16));
         $token = bin2hex(random_bytes(32));
 
         $statement = $this->db->prepare(
-            'INSERT INTO games (id, x_token_hash, x_user_id)
-            VALUES (:id, :token_hash, :user_id)
+            'INSERT INTO games (
+                id,
+                mode,
+                x_token_hash,
+                x_user_id
+            )
+            VALUES (
+                :id,
+                :mode,
+                :token_hash,
+                :user_id
+            )
             RETURNING *'
         );
 
         $statement->execute([
             'id' => $id,
+            'mode' => $mode,
             'token_hash' => hash('sha256', $token),
             'user_id' => $this->userId,
         ]);
@@ -125,14 +147,16 @@ final class ClassicGameService
         string $id,
         ?string $token,
         int $cell,
-        int $expectedVersion
+        int $expectedVersion,
+        ?int $board = null
     ): array {
         return $this->transaction(
             function () use (
                 $id,
                 $token,
                 $cell,
-                $expectedVersion
+                $expectedVersion,
+                $board
             ): array {
                 $row = $this->load($id, true);
                 $symbol = $this->identifyPlayer($row, $token);
@@ -170,8 +194,31 @@ final class ClassicGameService
                     );
                 }
 
-                $game->move($symbol, $cell);
-                $moves[] = $cell;
+                if ($row['mode'] === 'ultimate') {
+                    if ($board === null) {
+                        throw new ApiException(
+                            422,
+                            'Для ультимативного хода нужен номер поля board.'
+                        );
+                    }
+
+                    $game->move($symbol, $board, $cell);
+
+                    $moves[] = [
+                        'board' => $board,
+                        'cell' => $cell,
+                    ];
+                } else {
+                    if ($board !== null) {
+                        throw new ApiException(
+                            422,
+                            'В классическом режиме параметр board не используется.'
+                        );
+                    }
+
+                    $game->move($symbol, $cell);
+                    $moves[] = $cell;
+                }
 
                 $json = json_encode(
                     $moves,
@@ -393,8 +440,20 @@ final class ClassicGameService
         );
     }
 
+    // восстанавливает партию нужного режима из сохранённых ходов
     private function restore(array $row): array
     {
+        $mode = $row['mode'];
+
+        $game = match ($mode) {
+            'classic' => new ClassicGame(),
+            'ultimate' => new UltimateGame(),
+
+            default => throw new RuntimeException(
+                'В базе указан неизвестный режим партии.'
+            ),
+        };
+
         $moves = json_decode(
             $row['moves'],
             true,
@@ -402,29 +461,49 @@ final class ClassicGameService
             JSON_THROW_ON_ERROR
         );
 
+        $maximumMoves = $mode === 'classic' ? 9 : 81;
+
         if (
             !is_array($moves)
             || !array_is_list($moves)
-            || count($moves) > 9
+            || count($moves) > $maximumMoves
         ) {
             throw new RuntimeException(
                 'В базе хранится некорректная история партии.'
             );
         }
 
-        $game = new ClassicGame();
-
-        foreach ($moves as $index => $cell) {
-            if (!is_int($cell)) {
-                throw new RuntimeException(
-                    'В истории партии найден некорректный номер клетки.'
-                );
-            }
-
+        foreach ($moves as $index => $move) {
             $symbol = $index % 2 === 0 ? 'X' : 'O';
 
             try {
-                $game->move($symbol, $cell);
+                if ($mode === 'ultimate') {
+                    if (
+                        !is_array($move)
+                        || count($move) !== 2
+                        || !isset($move['board'], $move['cell'])
+                        || !is_int($move['board'])
+                        || !is_int($move['cell'])
+                    ) {
+                        throw new RuntimeException(
+                            'Некорректный формат ультимативного хода.'
+                        );
+                    }
+
+                    $game->move(
+                        $symbol,
+                        $move['board'],
+                        $move['cell']
+                    );
+                } else {
+                    if (!is_int($move)) {
+                        throw new RuntimeException(
+                            'Некорректный формат классического хода.'
+                        );
+                    }
+
+                    $game->move($symbol, $move);
+                }
             } catch (\DomainException | \InvalidArgumentException $error) {
                 throw new RuntimeException(
                     'История партии нарушает правила игры.',
@@ -471,6 +550,10 @@ final class ClassicGameService
             $state['winner'] = $row['winner'];
             $state['currentPlayer'] = null;
             $state['winningLine'] = null;
+
+            if ($row['mode'] === 'ultimate') {
+                $state['requiredBoard'] = null;
+            }
         }
 
         $roomStatus = $row['o_token_hash'] === null

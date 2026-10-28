@@ -245,3 +245,7 @@ summary {
 .turn-timer.warning {
     color: #b42318;
 }
+
+.board[hidden] {
+    display: none;
+}

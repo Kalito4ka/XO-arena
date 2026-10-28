@@ -108,6 +108,7 @@ function isMyTurn() {
         player !== null
         && game !== null
         && synced
+        && game.state.mode === 'classic'
         && game.roomStatus === 'active'
         && game.state.status === 'playing'
         && game.state.currentPlayer === player.symbol
@@ -192,6 +193,20 @@ function render() {
     );
 
     inviteLink.value = invitationUrl(player.id);
+
+    const ultimate = game?.state.mode === 'ultimate';
+
+    board.hidden = ultimate;
+
+    if (ultimate) {
+        setText(
+            turnInfo,
+            'Ультимативная партия сохранена на сервере. '
+            + 'Игровое поле этого режима добавим следующим этапом.',
+        );
+
+        return;
+    }
 
     let turnText;
 

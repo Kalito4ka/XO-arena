@@ -11,6 +11,7 @@ require_once __DIR__ . '/../Service/ClassicGameService.php';
 require_once __DIR__ . '/../Auth/gameAccount.php';
 require_once __DIR__ . '/../Service/GameResultService.php';
 require_once __DIR__ . '/../Service/GameTimeoutService.php';
+require_once __DIR__ . '/../Game/UltimateGame.php';
 
 function requireMethod(string $actual, string $allowed): void
 {
@@ -101,9 +102,27 @@ function readMoveData(): array
         );
     }
 
+    $board = null;
+
+    if (property_exists($data, 'board')) {
+        if (
+            !is_int($data->board)
+            || $data->board < 0
+            || $data->board > 8
+        ) {
+            throw new ApiException(
+                422,
+                'Номер поля board должен быть целым числом от 0 до 8.'
+            );
+        }
+
+        $board = $data->board;
+    }
+
     return [
         'cell' => $data->cell,
         'version' => $data->version,
+        'board' => $board,
     ];
 }
 
@@ -150,7 +169,16 @@ function handleGamesApi(string $path, string $method): never
         $service = new ClassicGameService($db, $userId);
 
         if ($isCreate) {
-            sendJson($service->create(), 201);
+            $mode = $_GET['mode'] ?? 'classic';
+
+            if (!is_string($mode)) {
+                throw new ApiException(
+                    422,
+                    'Параметр mode должен быть строкой.'
+                );
+            }
+
+            sendJson($service->create($mode), 201);
         }
 
         if ($isMine) {
@@ -171,7 +199,8 @@ function handleGamesApi(string $path, string $method): never
                     $id,
                     $token,
                     $data['cell'],
-                    $data['version']
+                    $data['version'],
+                    $data['board']
                 )
             );
         }
