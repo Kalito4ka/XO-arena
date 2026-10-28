@@ -87,7 +87,7 @@ final class ClassicGameService
                 'UPDATE games
                 SET o_token_hash = :token_hash,
                     o_user_id = :user_id,
-                    updated_at = CURRENT_TIMESTAMP
+                    updated_at = clock_timestamp()
                 WHERE id = :id'
             );
 
@@ -137,6 +137,23 @@ final class ClassicGameService
                 $row = $this->load($id, true);
                 $symbol = $this->identifyPlayer($row, $token);
 
+                if ($row['status'] !== 'playing') {
+                    throw new ApiException(
+                        409,
+                        'Партия уже завершена.'
+                    );
+                }
+
+                $row = (new GameTimeoutService($this->db))
+                    ->expireLocked($row);
+
+                if ($row['status'] !== 'playing') {
+                    return [
+                        'game' => $this->view($row),
+                        'symbol' => $symbol,
+                    ];
+                }
+
                 if ($row['o_token_hash'] === null) {
                     throw new ApiException(
                         409,
@@ -164,7 +181,7 @@ final class ClassicGameService
                 $statement = $this->db->prepare(
                     'UPDATE games
                      SET moves = CAST(:moves AS jsonb),
-                         updated_at = CURRENT_TIMESTAMP
+                         updated_at = clock_timestamp()
                      WHERE id = :id'
                 );
 
@@ -175,6 +192,11 @@ final class ClassicGameService
 
                 $row['moves'] = $json;
 
+                $row = (new GameResultService($this->db))->record(
+                        $row,
+                        $game->getState()
+                    );
+
                 return [
                     'game' => $this->view($row),
                     'symbol' => $symbol,
@@ -183,8 +205,8 @@ final class ClassicGameService
         );
     }
 
-    // метод получает список партий текущего пользователя: за кого он играл, кто был соперником и чем закончилась игра
-    public function mine(int $page): array
+    // получает активные партии, последние результаты и статистику аккаунта
+    public function mine(): array
     {
         if ($this->userId === null) {
             throw new ApiException(
@@ -193,73 +215,82 @@ final class ClassicGameService
             );
         }
 
-        $pageSize = 20;
-        $offset = ($page - 1) * $pageSize;
+        return [
+            'active' => $this->historyItems(false),
+            'recent' => $this->historyItems(true),
+            'stats' => (new GameResultService($this->db))->stats(
+                $this->userId
+            ),
+        ];
+    }
 
-        $statement = $this->db->prepare(
-            'SELECT g.*,
-                    x.nickname AS x_nickname,
-                    o.nickname AS o_nickname
+    // получает активные или последние завершённые партии аккаунта
+    private function historyItems(bool $finished): array
+    {
+        $sql = "
+            SELECT g.id,
+                   g.mode,
+                   g.status,
+                   g.winner,
+                   g.x_user_id,
+                   g.created_at,
+                   g.finished_at,
+                   CASE
+                       WHEN g.o_token_hash IS NULL THEN 'waiting'
+                       ELSE 'playing'
+                   END AS progress,
+                   x.nickname AS x_nickname,
+                   o.nickname AS o_nickname
             FROM games g
             LEFT JOIN users x ON x.id = g.x_user_id
             LEFT JOIN users o ON o.id = g.o_user_id
-            WHERE g.x_user_id = :x_user_id
+            WHERE (
+                g.x_user_id = :x_user_id
                 OR g.o_user_id = :o_user_id
-            ORDER BY g.created_at DESC, g.id DESC
-            LIMIT 21 OFFSET :offset'
-        );
+            )
+        ";
 
-        $statement->bindValue(
-            ':x_user_id',
-            $this->userId,
-            PDO::PARAM_INT
-        );
+        if ($finished) {
+            $sql .= "
+                AND g.status IN ('won', 'draw')
+                ORDER BY g.finished_at DESC, g.id DESC
+                LIMIT 20
+            ";
+        } else {
+            $sql .= "
+                AND g.status = 'playing'
+                ORDER BY g.created_at DESC, g.id DESC
+            ";
+        }
 
-        $statement->bindValue(
-            ':o_user_id',
-            $this->userId,
-            PDO::PARAM_INT
-        );
+        $statement = $this->db->prepare($sql);
 
-        $statement->bindValue(
-            ':offset',
-            $offset,
-            PDO::PARAM_INT
-        );
-
-        $statement->execute();
-
-        $rows = $statement->fetchAll();
-
-        $hasMore = count($rows) > $pageSize;
-        $rows = array_slice($rows, 0, $pageSize);
+        $statement->execute([
+            'x_user_id' => $this->userId,
+            'o_user_id' => $this->userId,
+        ]);
 
         $items = [];
 
-        foreach ($rows as $row) {
+        foreach ($statement->fetchAll() as $row) {
             $symbol = (
                 $row['x_user_id'] !== null
                 && (int) $row['x_user_id'] === $this->userId
             ) ? 'X' : 'O';
 
-            $game = $this->view($row);
-            $state = $game['state'];
-
-            if ($game['roomStatus'] === 'waiting') {
-                $result = 'waiting';
-            } elseif ($state['status'] === 'playing') {
-                $result = 'playing';
-            } elseif ($state['status'] === 'draw') {
+            if ($row['status'] === 'playing') {
+                $result = $row['progress'];
+            } elseif ($row['status'] === 'draw') {
                 $result = 'draw';
             } else {
-                $result = $state['winner'] === $symbol
+                $result = $row['winner'] === $symbol
                     ? 'win'
                     : 'loss';
             }
 
             $opponent = $symbol === 'X'
                 ? (
-                    $row['o_token_hash'] === null
+                    $row['progress'] === 'waiting'
                         ? 'Ожидается'
                         : ($row['o_nickname'] ?? 'Гость')
                 )
@@ -267,19 +298,16 @@ final class ClassicGameService
 
             $items[] = [
                 'id' => $row['id'],
-                'mode' => 'classic',
+                'mode' => $row['mode'],
                 'symbol' => $symbol,
                 'opponent' => $opponent,
                 'result' => $result,
                 'createdAt' => $row['created_at'],
+                'finishedAt' => $row['finished_at'],
             ];
         }
 
-        return [
-            'items' => $items,
-            'page' => $page,
-            'hasMore' => $hasMore,
-        ];
+        return $items;
     }
 
     private function load(string $id, bool $lock = false): array
@@ -414,6 +442,13 @@ final class ClassicGameService
 
         $state = $game->getState();
 
+        if ($row['end_reason'] === 'timeout') {
+            $state['status'] = 'won';
+            $state['winner'] = $row['winner'];
+            $state['currentPlayer'] = null;
+            $state['winningLine'] = null;
+        }
+
         $roomStatus = $row['o_token_hash'] === null
             ? 'waiting'
             : 'active';
@@ -439,6 +474,8 @@ final class ClassicGameService
             ],
 
             'createdAt' => $row['created_at'],
+            'finishedAt' => $row['finished_at'],
+            'endReason' => $row['end_reason'],
         ];
     }
 

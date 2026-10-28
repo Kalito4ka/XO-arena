@@ -9,6 +9,8 @@ require_once __DIR__ . '/../Game/ClassicGame.php';
 require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/../Service/ClassicGameService.php';
 require_once __DIR__ . '/../Auth/gameAccount.php';
+require_once __DIR__ . '/../Service/GameResultService.php';
+require_once __DIR__ . '/../Service/GameTimeoutService.php';
 
 function requireMethod(string $actual, string $allowed): void
 {
@@ -113,30 +115,11 @@ function handleGamesApi(string $path, string $method): never
 
         $id = null;
         $action = '';
-        $page = 1;
 
         if ($isCreate) {
             requireMethod($method, 'POST');
         } elseif ($isMine) {
             requireMethod($method, 'GET');
-
-            $page = filter_var(
-                $_GET['page'] ?? 1,
-                FILTER_VALIDATE_INT,
-                [
-                    'options' => [
-                        'min_range' => 1,
-                        'max_range' => 10000,
-                    ],
-                ]
-            );
-
-            if ($page === false) {
-                throw new ApiException(
-                    422,
-                    'Некорректный номер страницы.'
-                );
-            }
         } else {
             $matched = preg_match(
                 '~^/api/games/([a-f0-9]{32})(?:/(join|moves))?$~D',
@@ -171,7 +154,7 @@ function handleGamesApi(string $path, string $method): never
         }
 
         if ($isMine) {
-            sendJson($service->mine($page));
+            sendJson($service->mine());
         }
 
         $token = readPlayerToken();

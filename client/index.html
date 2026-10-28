@@ -165,21 +165,29 @@
                 Обновить список
             </button>
 
-            <p id="history-message" class="message" role="status"></p>
+            <p
+                id="history-message"
+                class="message"
+                role="status"
+            ></p>
 
-            <ul id="history-list" class="history-list"></ul>
+            <h3>Статистика классического режима</h3>
 
-            <div class="history-navigation">
-                <button id="history-prev" type="button" disabled>
-                    Назад
-                </button>
+            <p id="history-stats"></p>
 
-                <span id="history-page">Страница 1</span>
+            <h3>Текущие партии</h3>
 
-                <button id="history-next" type="button" disabled>
-                    Далее
-                </button>
-            </div>
+            <ul
+                id="active-list"
+                class="history-list"
+            ></ul>
+
+            <h3>Последние 20 завершённых партий</h3>
+
+            <ul
+                id="history-list"
+                class="history-list"
+            ></ul>
         </section>
 
         <footer class="muted">

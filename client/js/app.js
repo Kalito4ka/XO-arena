@@ -155,9 +155,15 @@ function render() {
     } else if (game.roomStatus === 'waiting') {
         turnText = 'Ожидаем второго игрока. Отправьте ему ссылку.';
     } else if (game.state.status === 'won') {
-        turnText = game.state.winner === player.symbol
-            ? 'Вы победили!'
-            : `Победил ${game.state.winner}.`;
+        if (game.endReason === 'timeout') {
+            turnText = game.state.winner === player.symbol
+                ? 'Вы победили: соперник не сделал ход за 60 секунд.'
+                : 'Вы проиграли: время на ход истекло.';
+        } else {
+            turnText = game.state.winner === player.symbol
+                ? 'Вы победили!'
+                : `Победил ${game.state.winner}.`;
+        }
     } else if (game.state.status === 'draw') {
         turnText = 'Ничья!';
     } else {

@@ -5,13 +5,11 @@ import {
     getAccountSnapshot,
 } from './auth.js';
 
-const list = document.querySelector('#history-list');
+const activeList = document.querySelector('#active-list');
+const recentList = document.querySelector('#history-list');
+const statsLabel = document.querySelector('#history-stats');
 const message = document.querySelector('#history-message');
-
 const refreshButton = document.querySelector('#history-refresh');
-const previousButton = document.querySelector('#history-prev');
-const nextButton = document.querySelector('#history-next');
-const pageLabel = document.querySelector('#history-page');
 
 const resultNames = {
     waiting: 'Ожидание соперника',
@@ -21,24 +19,19 @@ const resultNames = {
     draw: 'Ничья',
 };
 
-let page = 1;
-let hasMore = false;
-let busy = false;
-
-// Номер загрузки позволяет игнорировать старый ответ
-// после смены аккаунта или запуска нового запроса.
 let requestNumber = 0;
 
-function renderNavigation() {
-    previousButton.disabled = busy || page <= 1;
-    nextButton.disabled = busy || !hasMore;
-    refreshButton.disabled = busy;
+// показывает партии в указанном списке
+function renderItems(target, items) {
+    target.replaceChildren();
 
-    pageLabel.textContent = `Страница ${page}`;
-}
+    if (items.length === 0) {
+        const entry = document.createElement('li');
+        entry.textContent = 'Партий пока нет.';
+        target.append(entry);
 
-function renderItems(items) {
-    list.replaceChildren();
+        return;
+    }
 
     for (const item of items) {
         const entry = document.createElement('li');
@@ -54,55 +47,67 @@ function renderItems(items) {
             `Классика · вы ${item.symbol} · `
             + (resultNames[item.result] ?? item.result);
 
-        const date = new Date(item.createdAt)
-            .toLocaleString('ru-RU');
+        const finished = item.finishedAt !== null;
+
+        const date = new Date(
+            finished ? item.finishedAt : item.createdAt,
+        ).toLocaleString('ru-RU');
+
+        const dateLabel = finished ? 'Завершена' : 'Создана';
 
         details.textContent =
-            `Соперник: ${item.opponent}. Создана: ${date}.`;
+            `Соперник: ${item.opponent}. ${dateLabel}: ${date}.`;
 
         entry.append(link, details);
-        list.append(entry);
+        target.append(entry);
     }
 }
 
-async function loadHistory(targetPage = 1) {
+// показывает общую статистику аккаунта
+function renderStats(stats) {
+    const winRate = Number(stats.winRate).toLocaleString(
+        'ru-RU',
+        { maximumFractionDigits: 2 },
+    );
+
+    statsLabel.textContent =
+        `Сыграно: ${stats.played} · `
+        + `Побед: ${stats.wins} · `
+        + `Поражений: ${stats.losses} · `
+        + `Ничьих: ${stats.draws} · `
+        + `Процент побед: ${winRate}%`;
+}
+
+// загружает партии и статистику текущего аккаунта
+async function loadHistory() {
     const currentRequest = ++requestNumber;
     const account = getAccountSnapshot();
 
-    list.replaceChildren();
-
-    page = targetPage;
-    hasMore = false;
-    busy = false;
+    activeList.replaceChildren();
+    recentList.replaceChildren();
+    statsLabel.textContent = '';
+    refreshButton.disabled = false;
 
     if (!account.ready) {
         message.textContent = 'Сначала обновите данные аккаунта.';
-        renderNavigation();
 
         return;
     }
 
     if (account.user === null) {
-        page = 1;
-
         message.textContent =
             'Войдите в аккаунт, чтобы увидеть свои партии.';
-
-        renderNavigation();
 
         return;
     }
 
     const userId = account.user.id;
 
-    busy = true;
+    refreshButton.disabled = true;
     message.textContent = 'Загружаем партии...';
-    renderNavigation();
 
     try {
-        const data = await request(
-            `/api/games/mine?page=${targetPage}`,
-        );
+        const data = await request('/api/games/mine');
 
         if (
             currentRequest !== requestNumber
@@ -111,49 +116,40 @@ async function loadHistory(targetPage = 1) {
             return;
         }
 
-        page = data.page;
-        hasMore = data.hasMore;
+        renderItems(activeList, data.active);
+        renderItems(recentList, data.recent);
+        renderStats(data.stats);
 
-        renderItems(data.items);
-
-        message.textContent = data.items.length === 0
-            ? 'На этой странице партий нет.'
-            : 'Выберите партию, чтобы открыть её.';
+        message.textContent =
+            'Статистика учитывает все завершённые партии. '
+            + 'В истории показаны последние 20.';
     } catch (error) {
         if (currentRequest === requestNumber) {
             message.textContent = error.message;
         }
     } finally {
         if (currentRequest === requestNumber) {
-            busy = false;
-            renderNavigation();
+            refreshButton.disabled = false;
         }
     }
 }
 
 refreshButton.addEventListener('click', () => {
-    void loadHistory(1);
-});
-
-previousButton.addEventListener('click', () => {
-    void loadHistory(page - 1);
-});
-
-nextButton.addEventListener('click', () => {
-    void loadHistory(page + 1);
+    void loadHistory();
 });
 
 window.addEventListener('xo:account-changed', () => {
-    void loadHistory(1);
+    void loadHistory();
 });
 
 window.addEventListener('xo:games-updated', () => {
-    void loadHistory(1);
+    void loadHistory();
 });
 
+// загружает историю после проверки текущей сессии
 async function bootHistory() {
     await accountReady;
-    await loadHistory(1);
+    await loadHistory();
 }
 
 void bootHistory();
