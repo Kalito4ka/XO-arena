@@ -15,6 +15,8 @@
     <script type="module" src="/js/auth.js"></script>
 
     <script type="module" src="/js/history.js"></script>
+
+    <script type="module" src="/js/leaderboard.js"></script>
 </head>
 
 <body>
@@ -165,11 +167,7 @@
                 Обновить список
             </button>
 
-            <p
-                id="history-message"
-                class="message"
-                role="status"
-            ></p>
+            <p id="history-message" class="message" role="status"></p>
 
             <h3>Статистика классического режима</h3>
 
@@ -177,17 +175,64 @@
 
             <h3>Текущие партии</h3>
 
-            <ul
-                id="active-list"
-                class="history-list"
-            ></ul>
+            <ul id="active-list" class="history-list"></ul>
 
             <h3>Последние 20 завершённых партий</h3>
 
-            <ul
-                id="history-list"
-                class="history-list"
-            ></ul>
+            <ul id="history-list" class="history-list"></ul>
+        </section>
+
+        <section class="card" aria-labelledby="leaders-title">
+            <h2 id="leaders-title">Таблица лидеров</h2>
+
+            <p class="muted">
+                Классический режим. Лучшие 10 игроков,
+                завершивших не менее 10 партий.
+            </p>
+
+            <label for="leaders-sort">Сортировка</label>
+
+            <select id="leaders-sort">
+                <option value="winRate">
+                    По проценту побед
+                </option>
+
+                <option value="played">
+                    По количеству партий
+                </option>
+            </select>
+
+            <button id="leaders-refresh" type="button">
+                Обновить рейтинг
+            </button>
+
+            <p
+                id="leaders-message"
+                class="message"
+                role="status"
+            ></p>
+
+            <div class="table-scroll">
+                <table class="leaders-table">
+                    <caption>
+                        Рейтинг игроков классического режима
+                    </caption>
+
+                    <thead>
+                        <tr>
+                            <th scope="col">Место</th>
+                            <th scope="col">Игрок</th>
+                            <th scope="col">Партий</th>
+                            <th scope="col">Побед</th>
+                            <th scope="col">Поражений</th>
+                            <th scope="col">Ничьих</th>
+                            <th scope="col">Побед, %</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="leaders-body"></tbody>
+                </table>
+            </div>
         </section>
 
         <footer class="muted">

@@ -203,3 +203,35 @@ summary {
     align-items: center;
     gap: 12px;
 }
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+.leaders-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.leaders-table caption {
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.leaders-table th,
+.leaders-table td {
+    padding: 10px;
+    border-bottom: 1px solid #d8dee8;
+    text-align: left;
+}
+
+.leaders-table th {
+    white-space: nowrap;
+}
+
+#leaders-sort {
+    max-width: 100%;
+    margin: 8px 0 12px;
+    padding: 10px;
+    font: inherit;
+}

@@ -7,6 +7,7 @@ ini_set('zend.exception_ignore_args', '1');
 require_once __DIR__ . '/../src/database.php';
 require_once __DIR__ . '/../src/Http/games.php';
 require_once __DIR__ . '/../src/Http/auth.php';
+require_once __DIR__ . '/../src/Http/leaderboard.php';
 
 function sendJson(array $data, int $status = 200): never
 {
@@ -48,6 +49,10 @@ if (
     )
 ) {
     handleGamesApi($path, $method);
+}
+
+if ($path === '/api/leaderboard') {
+    handleLeaderboardApi($method);
 }
 
 $knownPaths = [
