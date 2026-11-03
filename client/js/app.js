@@ -14,6 +14,8 @@ import {
 
 import { createUltimateBoard } from './ultimateBoard.js?v=symbols-2';
 
+import { createGobblersBoard } from './gobblersBoard.js?v=gobblers-1';
+
 const ID_PATTERN = /^[a-f0-9]{32}$/;
 
 const createButton = document.querySelector('#create-button');
@@ -37,12 +39,18 @@ const gameTitle = document.querySelector('#game-title');
 const ultimateRoot = document.querySelector('#ultimate-board');
 const ultimateHint = document.querySelector('#ultimate-hint');
 const modeDescription = document.querySelector('#mode-description');
+const gobblersRoot = document.querySelector('#gobblers-board');
+const gobblersHint = document.querySelector('#gobblers-hint');
 
 // объясняет выбранный режим и его ограничение времени
 function renderModeDescription() {
-    modeDescription.textContent = modeSelect.value === 'ultimate'
-        ? 'Девять связанных полей. На ход — 30 секунд.'
-        : 'Собери три символа в ряд. На ход — 15 секунд.';
+    const descriptions = {
+        classic: 'Собери три символа в ряд. На ход — 15 секунд.',
+        ultimate: 'Девять связанных полей. На ход — 45 секунд.',
+        gobblers: 'Накрывай меньшие фишки и перемещай свои. На ход — 30 секунд.',
+    };
+
+    modeDescription.textContent = descriptions[modeSelect.value];
 }
 
 modeSelect.addEventListener('change', renderModeDescription);
@@ -155,6 +163,13 @@ const renderUltimateBoard = createUltimateBoard(
     },
 );
 
+const renderGobblersBoard = createGobblersBoard(
+    gobblersRoot,
+    (move) => {
+        void sendGobblersMove(move);
+    },
+);
+
 // показывает оставшееся время хода по последнему ответу сервера
 function renderTurnTimer() {
     const visible = (
@@ -206,15 +221,25 @@ function render() {
         return;
     }
 
-    const ultimate = game?.state.mode === 'ultimate';
+    const mode = game?.state.mode;
+    const ultimate = mode === 'ultimate';
+    const gobblers = mode === 'gobblers';
 
-    board.hidden = ultimate;
+    board.hidden = ultimate || gobblers;
     ultimateRoot.hidden = !ultimate;
     ultimateHint.hidden = !ultimate;
+    gobblersRoot.hidden = !gobblers;
+    gobblersHint.hidden = !gobblers;
+
+    const titles = {
+        classic: 'Классическая партия',
+        ultimate: 'Ультимативная партия',
+        gobblers: 'Пожирающая партия',
+    };
 
     setText(
         gameTitle,
-        ultimate ? 'Ультимативная партия' : 'Классическая партия',
+        titles[mode] ?? 'Загрузка партии',
     );
 
     setText(
@@ -237,7 +262,7 @@ function render() {
     } else if (game.state.status === 'won') {
         if (game.endReason === 'timeout') {
             turnText = game.state.winner === player.symbol
-                ? `Победа! Соперник не сделал ход за ${game.state.mode === 'classic' ? 15 : 30} секунд.`
+                ? `Победа! Соперник не сделал ход за ${game.state.mode === 'classic' ? 15 : 45} секунд.`
                 : 'Поражение по времени: срок хода истёк.';
         } else {
             turnText = game.state.winner === player.symbol
@@ -259,6 +284,17 @@ function render() {
     }
 
     setText(turnInfo, turnText);
+
+    if (gobblers) {
+        renderGobblersBoard(game.state, {
+            gameId: game.id,
+            symbol: player.symbol,
+            canMove: isMyTurn(),
+            busy,
+        });
+
+        return;
+    }
 
     if (ultimate) {
         renderUltimateBoard(game.state, {
@@ -478,6 +514,39 @@ joinForm.addEventListener('submit', (event) => {
     });
 });
 
+// отправляет выставление или перемещение монстрика на сервер
+async function sendGobblersMove(move) {
+    if (
+        busy
+        || !isMyTurn()
+        || game.state.mode !== 'gobblers'
+    ) {
+        return;
+    }
+
+    const body = {
+        cell: move.cell,
+        size: move.size,
+        from: move.from,
+        version: game.version,
+    };
+
+    await run(async () => {
+        const data = await gamePost(
+            `/api/games/${player.id}/moves`,
+            body,
+        );
+
+        applyState(data);
+
+        setMessage(
+            game.roomStatus === 'finished'
+                ? 'Партия завершена.'
+                : 'Ход сохранён.',
+        );
+    });
+}
+
 // отправляет ход в формате текущего режима
 async function sendMove(cell, boardIndex = null) {
     if (busy || !isMyTurn()) {
@@ -543,15 +612,50 @@ copyButton.addEventListener('click', async () => {
     }
 });
 
+// получает состояние в фоне без блокировки выбора и перетаскивания
 async function poll() {
     try {
         if (
-            player !== null
-            && !busy
-            && !document.hidden
-            && game?.roomStatus !== 'finished'
+            player === null
+            || busy
+            || document.hidden
+            || game?.roomStatus === 'finished'
         ) {
-            await run(refreshGame);
+            return;
+        }
+
+        const id = player.id;
+        const revision = accountRevision;
+
+        const data = await request(`/api/games/${id}`, {
+            token: player.token,
+        });
+
+        if (
+            busy
+            || player?.id !== id
+            || accountRevision !== revision
+            || (
+                game !== null
+                && data.game.version < game.version
+            )
+        ) {
+            return;
+        }
+
+        const wasOutOfSync = !synced;
+
+        applyState(data);
+        render();
+
+        if (wasOutOfSync) {
+            setMessage('Актуальное состояние партии загружено.');
+        }
+    } catch (error) {
+        if (!busy) {
+            synced = false;
+            render();
+            setMessage(error.message, true);
         }
     } finally {
         window.setTimeout(poll, 1500);

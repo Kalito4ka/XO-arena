@@ -12,6 +12,7 @@ require_once __DIR__ . '/../Auth/gameAccount.php';
 require_once __DIR__ . '/../Service/GameResultService.php';
 require_once __DIR__ . '/../Service/GameTimeoutService.php';
 require_once __DIR__ . '/../Game/UltimateGame.php';
+require_once __DIR__ . '/../Game/GobblersGame.php';
 
 function requireMethod(string $actual, string $allowed): void
 {
@@ -119,10 +120,48 @@ function readMoveData(): array
         $board = $data->board;
     }
 
+    $size = null;
+    $from = null;
+
+    if (property_exists($data, 'size')) {
+        if (
+            !is_int($data->size)
+            || $data->size < 1
+            || $data->size > 3
+        ) {
+            throw new ApiException(
+                422,
+                'Размер size должен быть целым числом от 1 до 3.'
+            );
+        }
+
+        $size = $data->size;
+    }
+
+    if (property_exists($data, 'from')) {
+        if (
+            $data->from !== null
+            && (
+                !is_int($data->from)
+                || $data->from < 0
+                || $data->from > 8
+            )
+        ) {
+            throw new ApiException(
+                422,
+                'Исходная клетка from должна быть null или целым числом от 0 до 8.'
+            );
+        }
+
+        $from = $data->from;
+    }
+
     return [
         'cell' => $data->cell,
         'version' => $data->version,
         'board' => $board,
+        'size' => $size,
+        'from' => $from,
     ];
 }
 
@@ -200,7 +239,9 @@ function handleGamesApi(string $path, string $method): never
                     $token,
                     $data['cell'],
                     $data['version'],
-                    $data['board']
+                    $data['board'],
+                    $data['size'],
+                    $data['from']
                 )
             );
         }

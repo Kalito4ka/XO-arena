@@ -8,7 +8,7 @@
         <title>Игры · XO-arena</title>
         <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
         <link rel="stylesheet" href="/style.css?v=plain-1">
-        <script type="module" src="/js/app.js?v=pages-1"></script>
+        <script type="module" src="/js/app.js?v=gobblers-30"></script>
         <script type="module" src="/js/leaderboard.js?v=pages-1"></script>
         <script type="module" src="/js/header.js"></script>
     </head>
@@ -59,6 +59,7 @@
                                         <select id="game-mode" class="mode-select">
                                             <option value="classic">Классика · поле 3 × 3</option>
                                             <option value="ultimate">Ультимативный · 9 полей</option>
+                                            <option value="gobblers">Пожирающий · фишки-монстрики</option>
                                         </select>
                                     </div>
                                     <button id="create-button"  type="button" disabled>Создать партию <span aria-hidden="true">↗</span></button>
@@ -91,6 +92,19 @@
                                 <div id="board" class="board" role="group" aria-label="Игровое поле три на три"></div>
                                 <p id="ultimate-hint" class="muted ultimate-hint" hidden>Номер выбранной клетки определяет поле следующего хода. Если оно закрыто, соперник выбирает любое доступное поле. Для победы собери три выигранных поля в ряд.</p>
                                 <div id="ultimate-board" class="ultimate-board" role="group" aria-label="Ультимативное игровое поле" hidden></div>
+                                <p id="gobblers-hint" class="muted" hidden>
+                                    Перетащи свою фишку на поле или выбери её нажатием,
+                                    а затем нажми на клетку. Большая фишка накрывает меньшую.
+                                    Свои верхние фишки можно перемещать.
+                                </p>
+
+                                <div
+                                    id="gobblers-board"
+                                    role="group"
+                                    aria-label="Пожирающее игровое поле и запас фишек"
+                                    hidden
+                                ></div>
+                                
                                 <div class="invitation">
                                     <label for="invite-link">Ссылка для приглашения</label>
                                     <div class="join-controls">
@@ -131,7 +145,7 @@
                             <div class="note-card">
                                 <span class="note-symbol" aria-hidden="true">(^_^)</span>
                                 <p class="little-label">время на ход</p>
-                                <p><strong>15 секунд</strong> в классике.<br><strong>30 секунд</strong> в ультимативном режиме.</p>
+                                <p><strong>15 секунд</strong> в классике.<br><strong>45 секунд</strong> в ультимативном режиме.</p>
                             </div>
                             <a class="profile-invite" href="/profile.html"><span aria-hidden="true">♡</span><span>История и статистика<small>Открыть профиль ↗</small></span></a>
                         </aside>

@@ -22,6 +22,7 @@ const resultNames = {
 const modeNames = {
     classic: 'Классика',
     ultimate: 'Ультимативный',
+    gobblers: 'Пожирающий',
 };
 
 let requestNumber = 0;
@@ -142,7 +143,7 @@ async function loadHistory() {
 
         message.textContent =
             'Статистика классики учитывает все её результаты. '
-            + 'Ниже — последние 10 завершённых партий обоих режимов.';
+            + 'Ниже — последние 10 завершённых партий всех режимов.';
     } catch (error) {
         if (currentRequest === requestNumber) {
             message.textContent = error.message;

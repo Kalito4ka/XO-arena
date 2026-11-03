@@ -6,6 +6,10 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Game\ClassicGame;
+use App\Game\UltimateGame;
+use App\Game\GobblersGame;
+
 use LogicException;
 use PDO;
 use RuntimeException;
@@ -17,7 +21,7 @@ final class GameTimeoutService
     {
     }
 
-    // завершает просроченную партию с уже заблокированной записью
+    // делает случайный допустимый ход после окончания времени
     public function expireLocked(array $row): array
     {
         if (!$this->db->inTransaction()) {
@@ -27,7 +31,7 @@ final class GameTimeoutService
         }
 
         if (
-            !in_array($row['mode'], ['classic', 'ultimate'], true)
+            !in_array($row['mode'], ['classic', 'ultimate', 'gobblers'], true)
             || $row['status'] !== 'playing'
             || $row['o_token_hash'] === null
         ) {
@@ -40,9 +44,10 @@ final class GameTimeoutService
              WHERE id = :id
                AND updated_at + CASE mode
                    WHEN 'classic' THEN INTERVAL '15 seconds'
-                   ELSE INTERVAL '30 seconds'
-               END
-                   <= clock_timestamp()"
+
+                   WHEN 'gobblers' THEN INTERVAL '30 seconds'
+                   ELSE INTERVAL '45 seconds'
+               END <= clock_timestamp()"
         );
 
         $statement->execute(['id' => $row['id']]);
@@ -64,27 +69,119 @@ final class GameTimeoutService
             );
         }
 
-        $loser = count($moves) % 2 === 0 ? 'X' : 'O';
-        $winner = $loser === 'X' ? 'O' : 'X';
+        $game = match ($row['mode']) {
+            'classic' => new ClassicGame(),
+            'ultimate' => new UltimateGame(),
+            'gobblers' => new GobblersGame(),
+        };
 
-        $row = (new GameResultService($this->db))->record(
-            $row,
-            [
-                'status' => 'won',
-                'winner' => $winner,
-            ]
-        );
+        foreach ($moves as $index => $move) {
+            $symbol = $index % 2 === 0 ? 'X' : 'O';
+
+            if ($row['mode'] === 'ultimate') {
+                $game->move(
+                    $symbol,
+                    $move['board'],
+                    $move['cell']
+                );
+            } elseif ($row['mode'] === 'gobblers') {
+                $game->move(
+                    $state['currentPlayer'],
+                    $move['cell'],
+                    $move['size'],
+                    $move['from']
+                );
+            } else {
+                $game->move($symbol, $move);
+            }
+        }
+
+        $state = $game->getState();
+        $choices = [];
+
+        if ($state['status'] !== 'playing') {
+            throw new RuntimeException(
+                'Состояние партии не соответствует сохранённым ходам.'
+            );
+        }
+
+        if ($row['mode'] === 'ultimate') {
+            foreach ($state['boards'] as $board => $cells) {
+                if (
+                    $state['boardStatuses'][$board] !== 'playing'
+                    || (
+                        $state['requiredBoard'] !== null
+                        && $state['requiredBoard'] !== $board
+                    )
+                ) {
+                    continue;
+                }
+
+                foreach ($cells as $cell => $value) {
+                    if ($value === null) {
+                        $choices[] = [
+                            'board' => $board,
+                            'cell' => $cell,
+                        ];
+                    }
+                }
+            }
+        } elseif ($row['mode'] === 'gobblers') {
+            $choices = $game->getLegalMoves();
+        } else {
+            foreach ($state['board'] as $cell => $value) {
+                if ($value === null) {
+                    $choices[] = $cell;
+                }
+            }
+        }
+
+        if ($choices === []) {
+            throw new RuntimeException(
+                'В активной партии нет допустимых ходов.'
+            );
+        }
+
+        $move = $choices[random_int(0, count($choices) - 1)];
+
+        if ($row['mode'] === 'ultimate') {
+            $game->move(
+                $state['currentPlayer'],
+                $move['board'],
+                $move['cell']
+            );
+        } elseif ($row['mode'] === 'gobblers') {
+            $game->move(
+                $symbol,
+                $move['cell'],
+                $move['size'],
+                $move['from']
+            );
+        } else {
+            $game->move($state['currentPlayer'], $move);
+        }
+
+        $moves[] = $move;
 
         $statement = $this->db->prepare(
-            "UPDATE games
-             SET end_reason = 'timeout'
+            'UPDATE games
+             SET moves = CAST(:moves AS jsonb),
+                 updated_at = clock_timestamp()
              WHERE id = :id
-             RETURNING *"
+             RETURNING *'
         );
 
-        $statement->execute(['id' => $row['id']]);
+        $statement->execute([
+            'moves' => json_encode($moves, JSON_THROW_ON_ERROR),
+            'id' => $row['id'],
+        ]);
 
-        return $statement->fetch();
+        $row = $statement->fetch();
+
+        return (new GameResultService($this->db))->record(
+            $row,
+            $game->getState()
+        );
     }
 
     // обрабатывает просроченные партии без запросов из браузера
@@ -93,12 +190,14 @@ final class GameTimeoutService
         $statement = $this->db->query(
             "SELECT id
              FROM games
-             WHERE mode IN ('classic', 'ultimate')
+             WHERE mode IN ('classic', 'ultimate', 'gobblers')
                AND status = 'playing'
                AND o_token_hash IS NOT NULL
                AND updated_at + CASE mode
                    WHEN 'classic' THEN INTERVAL '15 seconds'
-                   ELSE INTERVAL '30 seconds'
+
+                   WHEN 'gobblers' THEN INTERVAL '30 seconds'
+                   ELSE INTERVAL '45 seconds'
                END
                    <= clock_timestamp()
              ORDER BY updated_at, id
@@ -126,11 +225,7 @@ final class GameTimeoutService
                 if ($row !== false) {
                     $updated = $this->expireLocked($row);
 
-                    if (
-                        $row['status'] === 'playing'
-                        && $updated['status'] === 'won'
-                        && $updated['end_reason'] === 'timeout'
-                    ) {
+                    if ($row['moves'] !== $updated['moves']) {
                         $count++;
                     }
                 }

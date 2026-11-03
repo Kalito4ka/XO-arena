@@ -8,6 +8,7 @@ namespace App\Service;
 
 use App\Game\ClassicGame;
 use App\Game\UltimateGame;
+use App\Game\GobblersGame;
 use App\Http\ApiException;
 use PDO;
 use RuntimeException;
@@ -25,10 +26,16 @@ final class ClassicGameService
     // создаёт партию выбранного режима и выдаёт доступ первому игроку
     public function create(string $mode = 'classic'): array
     {
-        if (!in_array($mode, ['classic', 'ultimate'], true)) {
+        if (
+            !in_array(
+                $mode,
+                ['classic', 'ultimate', 'gobblers'],
+                true
+            )
+        ) {
             throw new ApiException(
                 422,
-                'Допустимые режимы: classic или ultimate.'
+                'Допустимые режимы: classic, ultimate или gobblers.'
             );
         }
 
@@ -148,7 +155,9 @@ final class ClassicGameService
         ?string $token,
         int $cell,
         int $expectedVersion,
-        ?int $board = null
+        ?int $board = null,
+        ?int $size = null,
+        ?int $from = null
     ): array {
         return $this->transaction(
             function () use (
@@ -156,7 +165,9 @@ final class ClassicGameService
                 $token,
                 $cell,
                 $expectedVersion,
-                $board
+                $board,
+                $size,
+                $from
             ): array {
                 $row = $this->load($id, true);
                 $symbol = $this->identifyPlayer($row, $token);
@@ -194,6 +205,16 @@ final class ClassicGameService
                     );
                 }
 
+                if (
+                    $row['mode'] !== 'gobblers'
+                    && ($size !== null || $from !== null)
+                ) {
+                    throw new ApiException(
+                        422,
+                        'Размер и исходная клетка используются только в пожирающем режиме.'
+                    );
+                }
+
                 if ($row['mode'] === 'ultimate') {
                     if ($board === null) {
                         throw new ApiException(
@@ -207,6 +228,21 @@ final class ClassicGameService
                     $moves[] = [
                         'board' => $board,
                         'cell' => $cell,
+                    ];
+                } elseif ($row['mode'] === 'gobblers') {
+                    if ($board !== null || $size === null) {
+                        throw new ApiException(
+                            422,
+                            'Для пожирающего хода нужен size; параметр board не используется.'
+                        );
+                    }
+
+                    $game->move($symbol, $cell, $size, $from);
+
+                    $moves[] = [
+                        'cell' => $cell,
+                        'size' => $size,
+                        'from' => $from,
                     ];
                 } else {
                     if ($board !== null) {
@@ -448,6 +484,7 @@ final class ClassicGameService
         $game = match ($mode) {
             'classic' => new ClassicGame(),
             'ultimate' => new UltimateGame(),
+            'gobblers' => new GobblersGame(),
 
             default => throw new RuntimeException(
                 'В базе указан неизвестный режим партии.'
@@ -461,7 +498,11 @@ final class ClassicGameService
             JSON_THROW_ON_ERROR
         );
 
-        $maximumMoves = $mode === 'classic' ? 9 : 81;
+        $maximumMoves = match ($mode) {
+            'classic' => 9,
+            'ultimate' => 81,
+            'gobblers' => 100,
+        };
 
         if (
             !is_array($moves)
@@ -495,6 +536,30 @@ final class ClassicGameService
                         $move['board'],
                         $move['cell']
                     );
+                } elseif ($mode === 'gobblers') {
+                    if (
+                        !is_array($move)
+                        || count($move) !== 3
+                        || !isset($move['cell'], $move['size'])
+                        || !is_int($move['cell'])
+                        || !is_int($move['size'])
+                        || !array_key_exists('from', $move)
+                        || (
+                            $move['from'] !== null
+                            && !is_int($move['from'])
+                        )
+                    ) {
+                        throw new RuntimeException(
+                            'Некорректный формат пожирающего хода.'
+                        );
+                    }
+
+                    $game->move(
+                        $symbol,
+                        $move['cell'],
+                        $move['size'],
+                        $move['from']
+                    );
                 } else {
                     if (!is_int($move)) {
                         throw new RuntimeException(
@@ -527,7 +592,9 @@ final class ClassicGameService
                         CAST(:updated_at AS timestamptz)
                         + CASE CAST(:mode AS text)
                             WHEN 'classic' THEN INTERVAL '15 seconds'
-                            ELSE INTERVAL '30 seconds'
+
+                            WHEN 'gobblers' THEN INTERVAL '30 seconds'
+                            ELSE INTERVAL '45 seconds'
                           END
                         - clock_timestamp()
                     )
