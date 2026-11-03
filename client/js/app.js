@@ -10,9 +10,9 @@ import {
 import {
     accountReady,
     getAccountSnapshot,
-} from './auth.js';
+} from './auth.js?v=pages-1';
 
-import { createUltimateBoard } from './ultimateBoard.js';
+import { createUltimateBoard } from './ultimateBoard.js?v=symbols-2';
 
 const ID_PATTERN = /^[a-f0-9]{32}$/;
 
@@ -36,6 +36,17 @@ const gameTitle = document.querySelector('#game-title');
 
 const ultimateRoot = document.querySelector('#ultimate-board');
 const ultimateHint = document.querySelector('#ultimate-hint');
+const modeDescription = document.querySelector('#mode-description');
+
+// объясняет выбранный режим и его ограничение времени
+function renderModeDescription() {
+    modeDescription.textContent = modeSelect.value === 'ultimate'
+        ? 'Девять связанных полей. На ход — 30 секунд.'
+        : 'Собери три символа в ряд. На ход — 15 секунд.';
+}
+
+modeSelect.addEventListener('change', renderModeDescription);
+renderModeDescription();
 
 let player = null;
 let game = null;
@@ -61,8 +72,8 @@ window.addEventListener('xo:account-changed', () => {
     render();
 
     setMessage(
-        'Аккаунт изменён. Откройте партию из списка '
-        + '«Мои партии» или по приглашению.',
+        'Аккаунт изменился. Открой свою партию в профиле '
+        + 'или присоединись по приглашению.',
     );
 });
 
@@ -176,7 +187,7 @@ function renderTurnTimer() {
         turnTimer,
         remaining > 0
             ? `На ход ${game.state.currentPlayer} осталось: ${remaining} с`
-            : 'Время истекло. Ожидаем результат сервера...',
+            : 'Время вышло. Ожидаем результат…',
     );
 }
 
@@ -209,8 +220,8 @@ function render() {
     setText(
         playerInfo,
         player.symbol === null
-            ? 'Определяем сторону участника...'
-            : `Вы играете за ${player.symbol}.`,
+            ? 'Определяем сторону игрока…'
+            : `Ты играешь за ${player.symbol}`,
     );
 
     inviteLink.value = invitationUrl(player.id);
@@ -218,26 +229,26 @@ function render() {
     let turnText;
 
     if (game === null) {
-        turnText = 'Получаем состояние партии...';
+        turnText = 'Загружаем партию…';
     } else if (!synced) {
-        turnText = 'Нужно обновить состояние. Ожидаем ответ сервера...';
+        turnText = 'Обновляем состояние поля…';
     } else if (game.roomStatus === 'waiting') {
-        turnText = 'Ожидаем второго игрока. Отправьте ему ссылку.';
+        turnText = 'Ожидаем второго игрока. Отправь ему ссылку.';
     } else if (game.state.status === 'won') {
         if (game.endReason === 'timeout') {
             turnText = game.state.winner === player.symbol
-                ? `Вы победили: соперник не сделал ход за ${game.state.mode === 'classic' ? 15 : 30} секунд.`
-                : 'Вы проиграли: время на ход истекло.';
+                ? `Победа! Соперник не сделал ход за ${game.state.mode === 'classic' ? 15 : 30} секунд.`
+                : 'Поражение по времени: срок хода истёк.';
         } else {
             turnText = game.state.winner === player.symbol
-                ? 'Вы победили!'
+                ? 'Победа!'
                 : `Победил ${game.state.winner}.`;
         }
     } else if (game.state.status === 'draw') {
         turnText = 'Ничья!';
     } else {
         turnText = isMyTurn()
-            ? 'Ваш ход.'
+            ? 'Твой ход.'
             : `Ход соперника: ${game.state.currentPlayer}.`;
 
         if (ultimate) {
@@ -422,7 +433,7 @@ createButton.addEventListener('click', () => {
 
         enterGame(data.game.id, data);
 
-        setMessage('Партия создана. Пригласите второго игрока.');
+        setMessage('Партия создана. Пригласи второго игрока.');
     });
 });
 
@@ -447,7 +458,7 @@ joinForm.addEventListener('submit', (event) => {
                 playerToken: savedPlayer?.token ?? null,
             });
 
-            setMessage('Вы вернулись в свою партию.');
+            setMessage('Партия открыта.');
 
             return;
         } catch (error) {
@@ -463,7 +474,7 @@ joinForm.addEventListener('submit', (event) => {
 
         enterGame(id, data);
 
-        setMessage(`Вы присоединились за ${data.symbol}.`);
+        setMessage(`Ты присоединился за ${data.symbol}.`);
     });
 });
 
@@ -513,7 +524,7 @@ async function sendMove(cell, boardIndex = null) {
 
         applyState(data);
 
-        setMessage('Ход сохранён.');
+        setMessage(game.roomStatus === 'finished' ? 'Партия завершена.' : 'Ход сохранён.');
     });
 }
 
@@ -562,7 +573,7 @@ async function boot() {
             ?? getLastGameId();
 
         if (id === null) {
-            setMessage('Создайте партию или откройте приглашение.');
+            setMessage('Создай партию или присоединись по ссылке.');
 
             return;
         }

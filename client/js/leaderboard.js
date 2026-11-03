@@ -4,88 +4,112 @@ const sortSelect = document.querySelector('#leaders-sort');
 const refreshButton = document.querySelector('#leaders-refresh');
 const message = document.querySelector('#leaders-message');
 const tableBody = document.querySelector('#leaders-body');
+const miniBody = document.querySelector('#mini-leaders-body');
+const miniMessage = document.querySelector('#mini-leaders-message');
 
 let requestNumber = 0;
+let miniRequestNumber = 0;
 
-// выводит игроков в таблицу лидеров
-function renderLeaders(items) {
-    tableBody.replaceChildren();
+// показывает пустое состояние таблицы без вымышленных игроков
+function renderEmpty(target, columns, text) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = columns;
+    cell.className = 'empty-cell';
+    cell.textContent = text;
+    row.append(cell);
+    target.replaceChildren(row);
+}
+
+// выводит полную или компактную таблицу с данными сервера
+function renderLeaders(target, items, compact = false) {
+    target.replaceChildren();
+
+    if (items.length === 0) {
+        renderEmpty(target, compact ? 4 : 7, 'В рейтинге пока нет игроков.');
+        return;
+    }
 
     for (const item of items) {
         const row = document.createElement('tr');
+        const rankCell = document.createElement('td');
+        const rank = document.createElement('span');
+        rank.className = 'rank-number';
+        rank.textContent = String(item.position);
+        rankCell.append(rank);
+        row.append(rankCell);
 
-        const values = [
-            item.position,
-            item.nickname,
-            item.played,
-            item.wins,
-            item.losses,
-            item.draws,
-            Number(item.winRate).toLocaleString(
-                'ru-RU',
-                { maximumFractionDigits: 2 },
-            ),
-        ];
+        const values = compact
+            ? [item.nickname, item.played, item.wins]
+            : [
+                item.nickname, item.played, item.wins, item.losses, item.draws,
+                Number(item.winRate).toLocaleString('ru-RU', { maximumFractionDigits: 2 }),
+            ];
 
         for (const value of values) {
             const cell = document.createElement('td');
-
             cell.textContent = String(value);
             row.append(cell);
         }
 
-        tableBody.append(row);
+        target.append(row);
     }
 }
 
-// загружает рейтинг с выбранной сортировкой
+// загружает выбранный рейтинг на странице лидеров
 async function loadLeaders() {
+    if (!tableBody) return;
     const currentRequest = ++requestNumber;
     const sort = sortSelect.value;
-
     refreshButton.disabled = true;
     tableBody.replaceChildren();
-    message.textContent = 'Загружаем рейтинг...';
+    message.textContent = 'Загружаем рейтинг…';
 
     try {
-        const data = await request(
-            `/api/leaderboard?sort=${encodeURIComponent(sort)}`,
-        );
+        const data = await request(`/api/leaderboard?sort=${encodeURIComponent(sort)}`);
+        if (currentRequest !== requestNumber) return;
 
-        if (currentRequest !== requestNumber) {
-            return;
-        }
-
-        renderLeaders(data.items);
-
-        const rule =
-            `Для участия нужно завершить не менее `
-            + `${data.minimumGames} партий.`;
-
-        message.textContent = data.items.length === 0
-            ? `В рейтинге пока нет игроков. ${rule}`
-            : rule;
+        renderLeaders(tableBody, data.items);
+        message.textContent = `Нужно не менее ${data.minimumGames} завершённых партий в классике.`;
     } catch (error) {
         if (currentRequest === requestNumber) {
             message.textContent = error.message;
+            renderEmpty(tableBody, 7, 'Не удалось загрузить рейтинг.');
         }
     } finally {
-        if (currentRequest === requestNumber) {
-            refreshButton.disabled = false;
+        if (currentRequest === requestNumber) refreshButton.disabled = false;
+    }
+}
+
+// загружает первые пять игроков для боковой таблицы
+async function loadMiniLeaders() {
+    if (!miniBody) return;
+    const currentRequest = ++miniRequestNumber;
+
+    try {
+        const data = await request('/api/leaderboard?sort=winRate');
+        if (currentRequest !== miniRequestNumber) return;
+
+        renderLeaders(miniBody, data.items.slice(0, 5), true);
+        miniMessage.textContent = `От ${data.minimumGames} партий в классике. Рейтинг по проценту побед.`;
+    } catch {
+        if (currentRequest === miniRequestNumber) {
+            renderEmpty(miniBody, 4, 'Рейтинг недоступен');
+            miniMessage.textContent = 'Попробуй обновить страницу позже.';
         }
     }
 }
 
-sortSelect.addEventListener('change', () => {
+sortSelect?.addEventListener('change', () => void loadLeaders());
+refreshButton?.addEventListener('click', () => {
     void loadLeaders();
-});
-
-refreshButton.addEventListener('click', () => {
-    void loadLeaders();
+    void loadMiniLeaders();
 });
 
 window.addEventListener('xo:games-updated', () => {
     void loadLeaders();
+    void loadMiniLeaders();
 });
 
 void loadLeaders();
+void loadMiniLeaders();

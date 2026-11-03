@@ -1,279 +1,153 @@
 <!doctype html>
 <html lang="ru">
-
-<head>
-    <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>XO-arena — крестики-нолики онлайн</title>
-
-    <link rel="stylesheet" href="/style.css">
-
-    <script type="module" src="/js/app.js"></script>
-
-    <script type="module" src="/js/auth.js"></script>
-
-    <script type="module" src="/js/history.js?v=2"></script>
-
-    <script type="module" src="/js/leaderboard.js"></script>
-</head>
-
-<body>
-    <main class="container">
-        <header>
-            <p class="eyebrow">Сетевая игра на PHP</p>
-
-            <h1>XO-arena</h1>
-
-            <p class="muted">
-                Классические и ультимативные крестики-нолики
-                для двух игроков.
-            </p>
-        </header>
-
-        <section class="card" aria-labelledby="auth-title">
-            <h2 id="auth-title">Аккаунт</h2>
-
-            <p id="auth-message" class="message" role="status"></p>
-
-            <div id="auth-guest" hidden>
-                <fieldset id="auth-fields" disabled>
-                    <legend>Вход и регистрация</legend>
-
-                    <form id="login-form" class="auth-form">
-                        <h3>Войти</h3>
-
-                        <label for="login-nickname">Никнейм</label>
-
-                        <input id="login-nickname" name="nickname" type="text" minlength="3" maxlength="24"
-                            autocomplete="username" required>
-
-                        <label for="login-password">Пароль</label>
-
-                        <input id="login-password" name="password" type="password" autocomplete="current-password"
-                            required>
-
-                        <button type="submit">Войти</button>
-                    </form>
-
-                    <details>
-                        <summary>Создать аккаунт</summary>
-
-                        <form id="register-form" class="auth-form">
-                            <label for="register-nickname">Никнейм</label>
-
-                            <input id="register-nickname" name="nickname" type="text" minlength="3" maxlength="24"
-                                pattern="[A-Za-z0-9_]{3,24}" autocomplete="username" aria-describedby="nickname-hint"
-                                required>
-
-                            <p id="nickname-hint" class="muted">
-                                3–24 латинские буквы, цифры или знак _.
-                            </p>
-
-                            <label for="register-password">Пароль</label>
-
-                            <input id="register-password" name="password" type="password" minlength="10" maxlength="72"
-                                autocomplete="new-password" aria-describedby="password-hint" required>
-
-                            <p id="password-hint" class="muted">
-                                Не менее 10 символов и не более 72 байт.
-                                Кириллица занимает больше одного байта на символ.
-                            </p>
-
-                            <label for="register-confirm">
-                                Повторите пароль
-                            </label>
-
-                            <input id="register-confirm" name="confirmation" type="password" autocomplete="new-password"
-                                required>
-
-                            <button type="submit">
-                                Зарегистрироваться
-                            </button>
-                        </form>
-                    </details>
-                </fieldset>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="theme-color" content="#f6d9df">
+        <meta name="description" content="Крестики-нолики онлайн: классика и ультимативный режим, партии с друзьями, история игр и рейтинг.">
+        <title>Игры · XO-arena</title>
+        <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+        <link rel="stylesheet" href="/style.css?v=plain-1">
+        <script type="module" src="/js/app.js?v=pages-1"></script>
+        <script type="module" src="/js/leaderboard.js?v=pages-1"></script>
+        <script type="module" src="/js/header.js"></script>
+    </head>
+    <body>
+        <a class="skip-link" href="#main-content">К содержимому</a>
+        <div class="site-shell">
+            <div class="window-bar" aria-hidden="true">
+                <span class="window-dots"><i></i><i></i><i></i></span>
+                <span>XO-arena</span>
+                <span class="window-symbols xo-symbols"><span>✕</span><span>♡</span><span class="nought">○</span></span>
             </div>
-
-            <div id="auth-user" hidden>
-                <p>
-                    Вы вошли как
-                    <strong id="current-nickname"></strong>.
-                </p>
-
-                <button id="logout-button" type="button" disabled>
-                    Выйти
-                </button>
+            <header class="site-header">
+                <a class="brand" href="/index.html" aria-label="XO-arena — на страницу игр"><span class="brand-smile" aria-hidden="true"><span>✕ ✕</span><span>○</span></span><span><strong>XO-arena</strong><small>крестики-нолики онлайн</small></span></a>
+                <nav class="main-nav" aria-label="Основная навигация">
+                    <a href="/index.html" data-nav="games" aria-current="page"><span class="nav-icon" aria-hidden="true">X</span> Игры</a>
+                    <a href="/leaders.html" data-nav="leaders"><span class="nav-icon" aria-hidden="true">♧</span> Лидеры</a>
+                    <a href="/profile.html" data-nav="profile"><span class="nav-icon" aria-hidden="true">♡</span> Профиль</a>
+                </nav>
+            </header>
+            <div class="welcome-strip">
+                <span class="header-account" id="header-account">можно играть гостем</span>
             </div>
-
-            <button id="auth-refresh" class="secondary" type="button">
-                Обновить данные аккаунта
-            </button>
-        </section>
-
-        <section class="card" aria-labelledby="start-title">
-            <h2 id="start-title">Начать игру</h2>
-
-            <label for="game-mode">Режим новой партии</label>
-
-            <select id="game-mode" class="mode-select">
-                <option value="classic">
-                    Классика
-                </option>
-
-                <option value="ultimate">
-                    Ультимативный
-                </option>
-            </select>
-
-            <button id="create-button" type="button" disabled>
-                Создать новую партию
-            </button>
-
-            <form id="join-form" class="join-form">
-                <label for="join-input">
-                    Ссылка приглашения или код партии
-                </label>
-
-                <input id="join-input" name="invitation" type="text" placeholder="Вставьте ссылку или код"
-                    autocomplete="off" spellcheck="false" required>
-
-                <button id="join-button" type="submit" disabled>
-                    Присоединиться
-                </button>
-            </form>
-        </section>
-
-        <p id="message" class="message" role="status" aria-live="polite"></p>
-
-        <section id="game-panel" class="card" aria-labelledby="game-title" hidden>
-            <h2 id="game-title">Классическая партия</h2>
-
-            <p id="player-info"></p>
-
-            <p id="turn-info" class="turn-info" aria-live="polite"></p>
-
-            <p id="turn-timer" class="turn-timer" hidden></p>
-
-            <div id="board" class="board" role="group" aria-label="Игровое поле три на три"></div>
-
-            <p id="ultimate-hint" class="muted" hidden>
-                Клетка вашего хода определяет поле для соперника.
-                Если оно закрыто, соперник выбирает любое открытое поле.
-                Выиграйте три маленьких поля в ряд.
-            </p>
-
-            <div
-                id="ultimate-board"
-                class="ultimate-board"
-                role="group"
-                aria-label="Ультимативное игровое поле"
-                hidden
-            ></div>
-
-            <div class="invitation">
-                <label for="invite-link">
-                    Пригласить второго игрока
-                </label>
-
-                <input id="invite-link" type="text" readonly>
-
-                <button id="copy-button" type="button">
-                    Скопировать ссылку
-                </button>
-            </div>
-
-            <p class="muted">
-                Для проверки двух игроков используйте разные браузеры.
-            </p>
-        </section>
-
-        <section class="card" aria-labelledby="history-title">
-            <h2 id="history-title">Мои партии</h2>
-
-            <button id="history-refresh" type="button">
-                Обновить список
-            </button>
-
-            <p id="history-message" class="message" role="status"></p>
-
-            <h3>Статистика классического режима</h3>
-
-            <p id="history-stats"></p>
-
-            <h3>Текущие партии</h3>
-
-            <ul id="active-list" class="history-list"></ul>
-
-            <h3>Последние 20 завершённых партий</h3>
-
-            <ul id="history-list" class="history-list"></ul>
-        </section>
-
-        <section class="card" aria-labelledby="leaders-title">
-            <h2 id="leaders-title">Таблица лидеров</h2>
-
-            <p class="muted">
-                Классический режим. Лучшие 10 игроков,
-                завершивших не менее 10 партий.
-            </p>
-
-            <label for="leaders-sort">Сортировка</label>
-
-            <select id="leaders-sort">
-                <option value="winRate">
-                    По проценту побед
-                </option>
-
-                <option value="played">
-                    По количеству партий
-                </option>
-            </select>
-
-            <button id="leaders-refresh" type="button">
-                Обновить рейтинг
-            </button>
-
-            <p
-                id="leaders-message"
-                class="message"
-                role="status"
-            ></p>
-
-            <div class="table-scroll">
-                <table class="leaders-table">
-                    <caption>
-                        Рейтинг игроков классического режима
-                    </caption>
-
-                    <thead>
-                        <tr>
-                            <th scope="col">Место</th>
-                            <th scope="col">Игрок</th>
-                            <th scope="col">Партий</th>
-                            <th scope="col">Побед</th>
-                            <th scope="col">Поражений</th>
-                            <th scope="col">Ничьих</th>
-                            <th scope="col">Побед, %</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="leaders-body"></tbody>
-                </table>
-            </div>
-        </section>
-
-        <footer class="muted">
-            <a href="/api/health" target="_blank" rel="noopener">
-                Проверка сервера
-            </a>
-            ·
-            <a href="/api/health/database" target="_blank" rel="noopener">
-                Проверка базы данных
-            </a>
-        </footer>
-    </main>
-</body>
-
+            <main id="main-content" tabindex="-1">
+                <section id="page-games" data-page="games" aria-labelledby="games-heading">
+                    <div class="page-intro">
+                        <h1 id="games-heading" tabindex="-1">Крестики-нолики онлайн</h1>
+                        <p>Выбирай режим, создавай партию и приглашай соперника.</p>
+                    </div>
+                    <div class="games-layout">
+                        <div class="games-main">
+                            <section class="card start-card" aria-labelledby="start-title">
+                                <div class="card-ribbon">
+                                    <span>01 / комната для двоих</span>
+                                    <span aria-hidden="true">♡</span>
+                                </div>
+                                <div class="start-heading">
+                                    <div>
+                                        <h2 id="start-title">Давай сыграем?</h2>
+                                        <p>Классическое поле или девять связанных досок.<br>Решай, во что играем сегодня.</p>
+                                    </div>
+                                    <div class="game-smile" aria-hidden="true">
+                                        (ง •̀_•́)ง
+                                    </div>
+                                </div>
+                                <div class="start-controls">
+                                    <div class="field">
+                                        <label for="game-mode">Во что играем?</label>
+                                        <select id="game-mode" class="mode-select">
+                                            <option value="classic">Классика · поле 3 × 3</option>
+                                            <option value="ultimate">Ультимативный · 9 полей</option>
+                                        </select>
+                                    </div>
+                                    <button id="create-button"  type="button" disabled>Создать партию <span aria-hidden="true">↗</span></button>
+                                </div>
+                                <p id="mode-description" class="mode-note">Собери три символа в ряд. На ход — 15 секунд.</p>
+                                <div class="soft-divider">
+                                    <span>или присоединись к партии</span>
+                                </div>
+                                <form id="join-form" class="join-form">
+                                    <label for="join-input">Есть приглашение?</label>
+                                    <div class="join-controls">
+                                        <input id="join-input" name="invitation" type="text" placeholder="Ссылка или код партии" autocomplete="off" spellcheck="false" required>
+                                        <button id="join-button" class="secondary" type="submit" disabled>Присоединиться</button>
+                                    </div>
+                                </form>
+                                <p class="small-note">Можно играть гостем. Аккаунт сохраняет историю и статистику.</p>
+                            </section>
+                            <p id="message" class="message game-message" role="status" aria-live="polite"></p>
+                            <section id="game-panel" class="card game-card" aria-labelledby="game-title" hidden>
+                                <div class="card-ribbon">
+                                    <span>02 / ваша партия</span>
+                                    <span class="xo-symbols" aria-hidden="true"><span>✕</span><span class="nought">○</span></span>
+                                </div>
+                                <div class="section-heading">
+                                    <h2 id="game-title">Классическая партия</h2>
+                                    <span id="player-info" class="player-badge"></span>
+                                </div>
+                                <p id="turn-info" class="turn-info" aria-live="polite"></p>
+                                <p id="turn-timer" class="turn-timer" hidden></p>
+                                <div id="board" class="board" role="group" aria-label="Игровое поле три на три"></div>
+                                <p id="ultimate-hint" class="muted ultimate-hint" hidden>Номер выбранной клетки определяет поле следующего хода. Если оно закрыто, соперник выбирает любое доступное поле. Для победы собери три выигранных поля в ряд.</p>
+                                <div id="ultimate-board" class="ultimate-board" role="group" aria-label="Ультимативное игровое поле" hidden></div>
+                                <div class="invitation">
+                                    <label for="invite-link">Ссылка для приглашения</label>
+                                    <div class="join-controls">
+                                        <input id="invite-link" type="text" readonly>
+                                        <button id="copy-button" class="secondary" type="button">Копировать ↗</button>
+                                    </div>
+                                </div>
+                                <p class="small-note">Таймер продолжает идти при закрытой вкладке. Не пропусти свой ход.</p>
+                            </section>
+                        </div>
+                        <aside class="games-sidebar" aria-label="Короткий рейтинг и подсказки">
+                            <section class="card mini-leaders" aria-labelledby="mini-leaders-title">
+                                <div class="card-ribbon sage-ribbon">
+                                    <span>рейтинг игроков</span>
+                                    <span class="xo-symbols" aria-hidden="true"><span>✕</span><span class="nought">○</span></span>
+                                </div>
+                                <div class="section-heading">
+                                    <h2 id="mini-leaders-title">Лидеры</h2>
+                                </div>
+                                <p class="small-note">Топ классики по проценту побед</p>
+                                <div class="table-scroll">
+                                    <table class="mini-table">
+                                        <caption class="visually-hidden">Первые пять игроков классического режима</caption>
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">№</th>
+                                                <th scope="col">Игрок</th>
+                                                <th scope="col">Игр</th>
+                                                <th scope="col">Побед</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="mini-leaders-body"></tbody>
+                                    </table>
+                                </div>
+                                <p id="mini-leaders-message" class="small-note" role="status">Загружаем рейтинг…</p>
+                                <a class="text-link" href="/leaders.html">Вся таблица лидеров <span aria-hidden="true">↗</span></a>
+                            </section>
+                            <div class="note-card">
+                                <span class="note-symbol" aria-hidden="true">(^_^)</span>
+                                <p class="little-label">время на ход</p>
+                                <p><strong>15 секунд</strong> в классике.<br><strong>30 секунд</strong> в ультимативном режиме.</p>
+                            </div>
+                            <a class="profile-invite" href="/profile.html"><span aria-hidden="true">♡</span><span>История и статистика<small>Открыть профиль ↗</small></span></a>
+                        </aside>
+                    </div>
+                </section>
+            </main>
+            <footer class="site-footer">
+                <div class="footer-main">
+                    <a class="footer-brand" href="/index.html">XO-arena</a>
+                    <p>Спасибо, что выбираете нас (•‿•)</p>
+                    <a class="text-link" href="/index.html">Начать партию ↗</a>
+                </div>
+                <div class="footer-bottom">
+                    <span aria-hidden="true">✕ ○ ✕ ♡ ○ ✕ ○</span>
+                </div>
+            </footer>
+        </div>
+    </body>
 </html>

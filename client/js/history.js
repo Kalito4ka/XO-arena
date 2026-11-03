@@ -3,7 +3,7 @@ import { request } from './api.js';
 import {
     accountReady,
     getAccountSnapshot,
-} from './auth.js';
+} from './auth.js?v=pages-1';
 
 const activeList = document.querySelector('#active-list');
 const recentList = document.querySelector('#history-list');
@@ -32,6 +32,7 @@ function renderItems(target, items) {
 
     if (items.length === 0) {
         const entry = document.createElement('li');
+        entry.className = 'empty-history';
         entry.textContent = 'Партий пока нет.';
         target.append(entry);
 
@@ -45,13 +46,14 @@ function renderItems(target, items) {
 
         const url = new URL('/', window.location.origin);
         url.searchParams.set('game', item.id);
+        url.hash = 'games';
 
         link.href = url.href;
 
         const modeName = modeNames[item.mode] ?? 'Неизвестный режим';
 
         link.textContent =
-            `${modeName} · вы ${item.symbol} · `
+            `${modeName} · ты ${item.symbol} · `
             + (resultNames[item.result] ?? item.result);
 
         const finished = item.finishedAt !== null;
@@ -77,12 +79,23 @@ function renderStats(stats) {
         { maximumFractionDigits: 2 },
     );
 
-    statsLabel.textContent =
-        `Сыграно: ${stats.played} · `
-        + `Побед: ${stats.wins} · `
-        + `Поражений: ${stats.losses} · `
-        + `Ничьих: ${stats.draws} · `
-        + `Процент побед: ${winRate}%`;
+    statsLabel.replaceChildren();
+    const values = [
+        ['Партий', stats.played], ['Побед', stats.wins],
+        ['Поражений', stats.losses], ['Ничьих', stats.draws],
+        ['Побед', `${winRate}%`],
+    ];
+
+    for (const [label, value] of values) {
+        const card = document.createElement('div');
+        const number = document.createElement('strong');
+        const caption = document.createElement('span');
+        card.className = 'stat-card';
+        number.textContent = String(value);
+        caption.textContent = label;
+        card.append(number, caption);
+        statsLabel.append(card);
+    }
 }
 
 // загружает партии и статистику текущего аккаунта
@@ -103,7 +116,7 @@ async function loadHistory() {
 
     if (account.user === null) {
         message.textContent =
-            'Войдите в аккаунт, чтобы увидеть свои партии.';
+            'Войди, чтобы просмотреть свои партии.';
 
         return;
     }
@@ -111,7 +124,7 @@ async function loadHistory() {
     const userId = account.user.id;
 
     refreshButton.disabled = true;
-    message.textContent = 'Загружаем партии...';
+    message.textContent = 'Загружаем партии…';
 
     try {
         const data = await request('/api/games/mine');
@@ -128,8 +141,8 @@ async function loadHistory() {
         renderStats(data.stats);
 
         message.textContent =
-            'Статистика учитывает все завершённые партии. '
-            + 'В истории показаны последние 20.';
+            'Статистика классики учитывает все её результаты. '
+            + 'Ниже — последние 10 завершённых партий обоих режимов.';
     } catch (error) {
         if (currentRequest === requestNumber) {
             message.textContent = error.message;

@@ -13,6 +13,10 @@ const nicknameLabel = document.querySelector('#current-nickname');
 const logoutButton = document.querySelector('#logout-button');
 const refreshButton = document.querySelector('#auth-refresh');
 const message = document.querySelector('#auth-message');
+const headerAccount = document.querySelector('#header-account');
+const profileCreated = document.querySelector('#profile-created');
+const profileNumber = document.querySelector('#profile-number');
+const profileHistory = document.querySelector('#profile-history');
 
 // переменные для текущего состояния
 let user = null;
@@ -23,12 +27,18 @@ let busy = false;
 
 // вывод сообщения
 function setMessage(text, error = false) {
+    if (!message) return;
     message.textContent = text;
     message.classList.toggle('error', error);
 }
 
 // показывает нужный блок
 function render() {
+    headerAccount.textContent = !ready
+        ? 'проверяем аккаунт…'
+        : user === null ? 'гостевой режим' : user.nickname;
+    if (!guestPanel) return;
+
     guestPanel.hidden = !ready || user !== null;
     userPanel.hidden = !ready || user === null;
 
@@ -38,6 +48,13 @@ function render() {
     refreshButton.disabled = busy;
 
     nicknameLabel.textContent = user?.nickname ?? '';
+    profileHistory.hidden = !ready || user === null;
+    profileNumber.textContent = user === null ? '—' : `#${user.id}`;
+    profileCreated.textContent = user === null
+        ? '—'
+        : new Date(user.createdAt).toLocaleDateString('ru-RU', {
+            day: 'numeric', month: 'long', year: 'numeric',
+        });
 }
 
 // охраняет полученные от сервера данные пользователя 
@@ -100,7 +117,7 @@ async function refreshAccount() {
 
     setMessage(
         user === null
-            ? 'Вы не вошли в аккаунт. Можно продолжить гостевую игру.'
+            ? 'Войди в аккаунт или продолжай играть гостем.'
             : `Вход выполнен: ${user.nickname}.`,
     );
 }
@@ -116,7 +133,7 @@ function readCredentials(form) {
 }
 
 // действия для форм и кнопок
-loginForm.addEventListener('submit', (event) => {
+loginForm?.addEventListener('submit', (event) => {
     event.preventDefault();
 
     const credentials = readCredentials(loginForm);
@@ -131,11 +148,11 @@ loginForm.addEventListener('submit', (event) => {
         applyAccount(data);
         loginForm.reset();
 
-        setMessage('Вы вошли в аккаунт.');
+        setMessage('Вход выполнен.');
     });
 });
 
-registerForm.addEventListener('submit', (event) => {
+registerForm?.addEventListener('submit', (event) => {
     event.preventDefault();
 
     const credentials = readCredentials(registerForm);
@@ -161,11 +178,11 @@ registerForm.addEventListener('submit', (event) => {
         applyAccount(data);
         registerForm.reset();
 
-        setMessage('Аккаунт создан. Вы вошли автоматически.');
+        setMessage('Аккаунт создан. Вход выполнен автоматически.');
     });
 });
 
-logoutButton.addEventListener('click', () => {
+logoutButton?.addEventListener('click', () => {
     void run(async () => {
         const data = await request('/api/auth/logout', {
             method: 'POST',
@@ -177,11 +194,11 @@ logoutButton.addEventListener('click', () => {
         loginForm.reset();
         registerForm.reset();
 
-        setMessage('Вы вышли из аккаунта.');
+        setMessage('Ты вышел из аккаунта. Можно продолжить игру гостем.');
     });
 });
 
-refreshButton.addEventListener('click', () => {
+refreshButton?.addEventListener('click', () => {
     void run(refreshAccount);
 });
 

@@ -302,7 +302,7 @@ final class ClassicGameService
             $sql .= "
                 AND g.status IN ('won', 'draw')
                 ORDER BY g.finished_at DESC, g.id DESC
-                LIMIT 20
+                LIMIT 10
             ";
         } else {
             $sql .= "
