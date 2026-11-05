@@ -189,8 +189,7 @@ fieldset {
 
 .field,
 .auth-form,
-.join-form,
-.invitation {
+.join-form {
     display: grid;
     gap: 8px;
 }
@@ -513,13 +512,6 @@ main {
     margin-bottom: 0;
 }
 
-.note-symbol {
-    display: block;
-    text-align: right;
-    color: #697344;
-    margin-bottom: 8px;
-}
-
 .profile-invite {
     display: flex;
     align-items: center;
@@ -722,13 +714,6 @@ tr:nth-child(3) .rank-number {
     border-color: #8d9b58;
 }
 
-.invitation {
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid #d2c5ae;
-}
-
-.invitation input,
 .ultimate-hint {
     font-size: 12px;
 }
@@ -773,36 +758,24 @@ tr:nth-child(3) .rank-number {
 }
 
 /* профиль и история */
-.auth-layout,
-.profile-card {
+.auth-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 40px;
+    gap: 16px;
+    max-width: 32rem;
     padding: 16px 0;
 }
 
-.auth-welcome,
-.profile-avatar-area {
-    text-align: center;
+.profile-facts {
+    margin: 16px 0;
 }
 
-.auth-welcome {
-    align-self: center;
+.profile-facts > div {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fffdf8;
 }
 
-.avatar-placeholder {
-    width: 136px;
-    height: 136px;
-    margin: 0 auto 22px;
-    background: #e4e9c5;
-}
-
-.profile-card {
-    grid-template-columns: 180px minmax(0, 1fr);
-    align-items: center;
-}
-
-.profile-details h2 {
+#current-nickname {
     font-size: 32px;
     overflow-wrap: anywhere;
 }
@@ -972,10 +945,6 @@ tr:nth-child(3) .rank-number {
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    .auth-layout {
-        gap: 25px;
-    }
-
     .stats-grid {
         grid-template-columns: repeat(3, 1fr);
     }
@@ -1054,9 +1023,7 @@ tr:nth-child(3) .rank-number {
 
     .games-sidebar,
     .start-controls,
-    .join-controls,
-    .auth-layout,
-    .profile-card {
+    .join-controls {
         grid-template-columns: 1fr;
     }
 
@@ -1090,10 +1057,6 @@ tr:nth-child(3) .rank-number {
 
     .ultimate-cell {
         font-size: 17px;
-    }
-
-    .profile-card {
-        text-align: center;
     }
 
     .profile-facts,
@@ -1221,7 +1184,7 @@ tr:nth-child(3) .rank-number {
     padding: 0;
     border: 2px solid transparent;
     background: transparent;
-    cursor: grab;
+    cursor: pointer;
 }
 
 .monster-piece:hover:not(:disabled) {
@@ -1320,4 +1283,12 @@ tr:nth-child(3) .rank-number {
     .stack-count {
         font-size: 8px;
     }
+}
+.matchmaking-controls {
+    margin-top: 12px;
+}
+
+.card-ribbon > button {
+    padding: 5px 12px;
+    margin-left: auto;
 }

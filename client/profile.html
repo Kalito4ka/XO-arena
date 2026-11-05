@@ -7,8 +7,8 @@
         <meta name="description" content="Крестики-нолики онлайн: классика и ультимативный режим, партии с друзьями, история игр и рейтинг.">
         <title>Профиль · XO-arena</title>
         <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-        <link rel="stylesheet" href="/style.css?v=plain-1">
-        <script type="module" src="/js/history.js?v=pages-1"></script>
+        <link rel="stylesheet" href="/style.css?v=layout-3">
+        <script type="module" src="/js/history.js?v=layout-3"></script>
         <script type="module" src="/js/header.js"></script>
     </head>
     <body>
@@ -42,19 +42,16 @@
                             <span aria-hidden="true">♡</span>
                         </div>
                         <h2 id="auth-title" class="visually-hidden">Аккаунт</h2>
-                        <p id="auth-message" class="message" role="status"></p>
+                        <p id="auth-message" class="message" role="status" hidden></p>
                         <div id="auth-guest" hidden>
                             <div class="auth-layout">
-                                <div class="auth-welcome">
-                                    <div class="avatar-placeholder" aria-hidden="true"></div>
-                                    <h2>Вход в аккаунт</h2>
-                                    <p>Войди, чтобы просматривать свои партии и участвовать в рейтинге.</p>
-                                    <a href="/index.html" class="text-link">Играть без аккаунта ↗</a>
-                                </div>
                                 <fieldset id="auth-fields" disabled>
                                     <legend class="visually-hidden">Вход и регистрация</legend>
                                     <form id="login-form" class="auth-form">
-                                        <h3>Авторизация</h3>
+                                        <div class="page-intro">
+                                            <h2>Вход в аккаунт</h2>
+                                            <p>Войди, чтобы просматривать свои партии и участвовать в рейтинге.</p>
+                                        </div>
                                         <label for="login-nickname">Твой никнейм</label>
                                         <input id="login-nickname" name="nickname" type="text" minlength="3" maxlength="24" autocomplete="username" placeholder="Введи никнейм" required>
                                         <label for="login-password">Пароль</label>
@@ -76,45 +73,35 @@
                                         </form>
                                     </details>
                                 </fieldset>
+                                <a href="/index.html" class="text-link">Играть без аккаунта ↗</a>
                             </div>
                         </div>
                         <div id="auth-user" hidden>
-                            <div class="profile-card">
-                                <div class="profile-avatar-area">
-                                    <div id="profile-avatar" class="avatar-placeholder" role="img" aria-label="Заглушка аватара"></div>
-                                    <span class="small-note">место для аватара</span>
+                            <span class="little-label">карточка игрока</span>
+                            <h2 id="current-nickname"></h2>
+                            <dl class="profile-facts">
+                                <div>
+                                    <dt>Дата регистрации</dt>
+                                    <dd id="profile-created">—</dd>
                                 </div>
-                                <div class="profile-details">
-                                    <span class="little-label">карточка игрока</span>
-                                    <h2 id="current-nickname"></h2>
-                                    <p>Информация об аккаунте</p>
-                                    <dl class="profile-facts">
-                                        <div>
-                                            <dt>Дата регистрации</dt>
-                                            <dd id="profile-created">—</dd>
-                                        </div>
-                                        <div>
-                                            <dt>ID игрока</dt>
-                                            <dd id="profile-number">—</dd>
-                                        </div>
-                                    </dl>
-                                    <div class="profile-actions">
-                                        <a class="button-link" href="/index.html">Начать игру ↗</a>
-                                        <button id="logout-button" class="secondary" type="button" disabled>Выйти из аккаунта</button>
-                                    </div>
+                                <div>
+                                    <dt>ID игрока</dt>
+                                    <dd id="profile-number">—</dd>
                                 </div>
+                            </dl>
+                            <div class="profile-actions">
+                                <a class="button-link" href="/index.html">Начать игру ↗</a>
+                                <button id="logout-button" class="secondary" type="button" disabled>Выйти из аккаунта</button>
                             </div>
                         </div>
-                        <button id="auth-refresh" class="text-button" type="button">Обновить данные аккаунта ↻</button>
                     </section>
                     <section id="profile-history" class="card history-card" aria-labelledby="history-title" hidden>
                         <div class="card-ribbon sage-ribbon">
                             <span>история игр</span>
-                            <span class="xo-symbols" aria-hidden="true"><span>✕</span><span class="nought">○</span></span>
+                            <button id="history-refresh" class="secondary" type="button">Обновить ↻</button>
                         </div>
                         <div class="section-heading">
                             <h2 id="history-title">Твои партии</h2>
-                            <button id="history-refresh" class="secondary" type="button">Обновить ↻</button>
                         </div>
                         <p id="history-message" class="message" role="status"></p>
                         <h3 class="subheading">Статистика классики</h3>

@@ -1,10 +1,9 @@
-// создаёт поле с запасом монстриков и обработкой перетаскивания
+// создаёт поле с запасом монстриков и выбором фишек нажатием
 export function createGobblersBoard(root, onMove) {
     let state = null;
     let playerSymbol = null;
     let canMove = false;
     let selected = null;
-    let dragging = false;
     let lastRenderKey = null;
 
     root.classList.add('gobblers-layout');
@@ -41,46 +40,6 @@ export function createGobblersBoard(root, onMove) {
                     from: cell,
                 });
             }
-        });
-
-        button.addEventListener('dragstart', (event) => {
-            const piece = state?.board[cell];
-
-            if (!canMove || piece?.symbol !== playerSymbol) {
-                event.preventDefault();
-                return;
-            }
-
-            selected = {
-                size: piece.size,
-                from: cell,
-            };
-
-            dragging = true;
-            highlight();
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', 'gobblers');
-        });
-
-        button.addEventListener('dragover', (event) => {
-            if (dragging && allowed(cell)) {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = 'move';
-            }
-        });
-
-        button.addEventListener('drop', (event) => {
-            event.preventDefault();
-
-            if (dragging && allowed(cell)) {
-                submit(cell);
-            }
-        });
-
-        button.addEventListener('dragend', () => {
-            dragging = false;
-            selected = null;
-            highlight();
         });
 
         board.append(button);
@@ -158,7 +117,6 @@ export function createGobblersBoard(root, onMove) {
         };
 
         selected = null;
-        dragging = false;
         canMove = false;
         highlight();
 
@@ -185,7 +143,6 @@ export function createGobblersBoard(root, onMove) {
                 button.dataset.reserveSize = String(size);
                 button.dataset.symbol = symbol;
                 button.disabled = !canMove || symbol !== playerSymbol;
-                button.draggable = !button.disabled;
 
                 button.setAttribute(
                     'aria-label',
@@ -196,24 +153,6 @@ export function createGobblersBoard(root, onMove) {
 
                 button.addEventListener('click', () => {
                     selectPiece({ size, from: null });
-                });
-
-                button.addEventListener('dragstart', (event) => {
-                    selected = { size, from: null };
-                    dragging = true;
-                    highlight();
-
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData(
-                        'text/plain',
-                        'gobblers',
-                    );
-                });
-
-                button.addEventListener('dragend', () => {
-                    dragging = false;
-                    selected = null;
-                    highlight();
                 });
 
                 target.append(button);
@@ -242,7 +181,6 @@ export function createGobblersBoard(root, onMove) {
         canMove = options.canMove && !options.busy;
 
         selected = null;
-        dragging = false;
 
         renderReserve(left, 'X');
         renderReserve(right, 'O');
@@ -251,8 +189,6 @@ export function createGobblersBoard(root, onMove) {
             const piece = state.board[cell];
 
             button.replaceChildren();
-            button.draggable = canMove
-                && piece?.symbol === playerSymbol;
 
             button.setAttribute(
                 'aria-label',

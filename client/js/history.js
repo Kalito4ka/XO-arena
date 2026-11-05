@@ -3,7 +3,7 @@ import { request } from './api.js';
 import {
     accountReady,
     getAccountSnapshot,
-} from './auth.js?v=pages-1';
+} from './auth.js?v=layout-3';
 
 const activeList = document.querySelector('#active-list');
 const recentList = document.querySelector('#history-list');

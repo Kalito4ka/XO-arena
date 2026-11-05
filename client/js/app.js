@@ -10,11 +10,11 @@ import {
 import {
     accountReady,
     getAccountSnapshot,
-} from './auth.js?v=pages-1';
+} from './auth.js?v=layout-3';
 
 import { createUltimateBoard } from './ultimateBoard.js?v=symbols-2';
 
-import { createGobblersBoard } from './gobblersBoard.js?v=gobblers-1';
+import { createGobblersBoard } from './gobblersBoard.js?v=gobblers-2';
 
 const ID_PATTERN = /^[a-f0-9]{32}$/;
 
@@ -30,8 +30,6 @@ const turnInfo = document.querySelector('#turn-info');
 const turnTimer = document.querySelector('#turn-timer');
 
 const board = document.querySelector('#board');
-const inviteLink = document.querySelector('#invite-link');
-const copyButton = document.querySelector('#copy-button');
 
 const modeSelect = document.querySelector('#game-mode');
 const gameTitle = document.querySelector('#game-title');
@@ -107,7 +105,7 @@ function setText(element, text) {
     }
 }
 
-function invitationUrl(id) {
+function gameUrl(id) {
     const url = new URL(window.location.pathname, window.location.origin);
 
     url.searchParams.set('game', id);
@@ -279,8 +277,6 @@ function render() {
             : `Ты играешь за ${player.symbol}`,
     );
 
-    inviteLink.value = invitationUrl(player.id);
-
     let turnText;
 
     if (game === null) {
@@ -288,7 +284,7 @@ function render() {
     } else if (!synced) {
         turnText = 'Обновляем состояние поля…';
     } else if (game.roomStatus === 'waiting') {
-        turnText = 'Ожидаем второго игрока. Отправь ему ссылку.';
+        turnText = 'Ожидаем второго игрока.';
     } else if (game.state.status === 'won') {
         if (game.endReason === 'timeout') {
             turnText = game.state.winner === player.symbol
@@ -450,7 +446,7 @@ function enterGame(id, data) {
     window.history.replaceState(
         null,
         '',
-        invitationUrl(id),
+        gameUrl(id),
     );
 
     window.dispatchEvent(
@@ -619,7 +615,7 @@ createButton.addEventListener('click', () => {
 
         enterGame(data.game.id, data);
 
-        setMessage('Партия создана. Пригласи второго игрока.');
+        setMessage('Партия создана.');
     });
 });
 
@@ -747,22 +743,7 @@ async function sendMove(cell, boardIndex = null) {
     });
 }
 
-copyButton.addEventListener('click', async () => {
-    try {
-        await navigator.clipboard.writeText(inviteLink.value);
-
-        setMessage('Ссылка скопирована.');
-    } catch {
-        inviteLink.focus();
-        inviteLink.select();
-
-        setMessage(
-            'Скопируйте выделенную ссылку вручную: Ctrl+C.',
-        );
-    }
-});
-
-// получает состояние в фоне без блокировки выбора и перетаскивания
+// получает состояние в фоне без блокировки выбора фишки
 async function poll() {
     try {
         if (

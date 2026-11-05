@@ -7,9 +7,9 @@
         <meta name="description" content="Крестики-нолики онлайн: классика и ультимативный режим, партии с друзьями, история игр и рейтинг.">
         <title>Лидеры · XO-arena</title>
         <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-        <link rel="stylesheet" href="/style.css?v=plain-1">
-        <script type="module" src="/js/auth.js?v=pages-1"></script>
-        <script type="module" src="/js/leaderboard.js?v=pages-1"></script>
+        <link rel="stylesheet" href="/style.css?v=layout-3">
+        <script type="module" src="/js/auth.js?v=layout-3"></script>
+        <script type="module" src="/js/leaderboard.js?v=layout-3"></script>
         <script type="module" src="/js/header.js"></script>
     </head>
     <body>
@@ -39,13 +39,13 @@
                     </div>
                     <section class="card leaders-card" aria-labelledby="leaders-title">
                         <div class="card-ribbon sage-ribbon">
-                            <span>классический режим / топ 10</span>
-                            <span class="xo-symbols" aria-hidden="true"><span>✕</span><span class="nought">○</span></span>
+                            <span>все режимы / топ 10</span>
+                            <button id="leaders-refresh" class="secondary" type="button">Обновить ↻</button>
                         </div>
                         <div class="section-heading">
                             <div>
                                 <h2 id="leaders-title">Таблица лидеров</h2>
-                                <p class="muted">В рейтинг попадают игроки с 10 завершёнными партиями и больше.</p>
+                                <p class="muted">Для участия нужно завершить 10 партий суммарно во всех режимах.</p>
                             </div>
                         </div>
                         <div class="leader-controls">
@@ -56,12 +56,11 @@
                                     <option value="played">По количеству партий</option>
                                 </select>
                             </div>
-                            <button id="leaders-refresh" class="secondary" type="button">Обновить ↻</button>
                         </div>
-                        <p id="leaders-message" class="message" role="status"></p>
+                        <p id="leaders-message" class="message" role="status" hidden></p>
                         <div class="table-scroll">
                             <table class="leaders-table">
-                                <caption class="visually-hidden">Полная статистика лидеров классического режима</caption>
+                                <caption class="visually-hidden">Общая статистика лидеров по всем режимам</caption>
                                 <thead>
                                     <tr>
                                         <th scope="col">Место</th>

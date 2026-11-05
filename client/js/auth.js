@@ -11,7 +11,6 @@ const registerForm = document.querySelector('#register-form');
 
 const nicknameLabel = document.querySelector('#current-nickname');
 const logoutButton = document.querySelector('#logout-button');
-const refreshButton = document.querySelector('#auth-refresh');
 const message = document.querySelector('#auth-message');
 const headerAccount = document.querySelector('#header-account');
 const profileCreated = document.querySelector('#profile-created');
@@ -29,6 +28,7 @@ let busy = false;
 function setMessage(text, error = false) {
     if (!message) return;
     message.textContent = text;
+    message.hidden = text === '';
     message.classList.toggle('error', error);
 }
 
@@ -45,7 +45,6 @@ function render() {
     fields.disabled = busy || !ready;
 
     logoutButton.disabled = busy || !ready || user === null;
-    refreshButton.disabled = busy;
 
     nicknameLabel.textContent = user?.nickname ?? '';
     profileHistory.hidden = !ready || user === null;
@@ -118,7 +117,7 @@ async function refreshAccount() {
     setMessage(
         user === null
             ? 'Войди в аккаунт или продолжай играть гостем.'
-            : `Вход выполнен: ${user.nickname}.`,
+            : '',
     );
 }
 
@@ -148,7 +147,7 @@ loginForm?.addEventListener('submit', (event) => {
         applyAccount(data);
         loginForm.reset();
 
-        setMessage('Вход выполнен.');
+        setMessage('');
     });
 });
 
@@ -178,7 +177,7 @@ registerForm?.addEventListener('submit', (event) => {
         applyAccount(data);
         registerForm.reset();
 
-        setMessage('Аккаунт создан. Вход выполнен автоматически.');
+        setMessage('');
     });
 });
 
@@ -196,10 +195,6 @@ logoutButton?.addEventListener('click', () => {
 
         setMessage('Ты вышел из аккаунта. Можно продолжить игру гостем.');
     });
-});
-
-refreshButton?.addEventListener('click', () => {
-    void run(refreshAccount);
 });
 
 export const accountReady = run(refreshAccount);

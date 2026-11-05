@@ -33,17 +33,17 @@ final class LeaderboardService
             WITH ranking AS (
                 SELECT u.id AS user_id,
                        u.nickname,
-                       s.wins,
-                       s.losses,
-                       s.draws,
-                       s.wins + s.losses + s.draws AS played,
-                       100.0 * s.wins / NULLIF(
-                           s.wins + s.losses + s.draws,
+                       SUM(s.wins) AS wins,
+                       SUM(s.losses) AS losses,
+                       SUM(s.draws) AS draws,
+                       SUM(s.wins + s.losses + s.draws) AS played,
+                       100.0 * SUM(s.wins) / NULLIF(
+                           SUM(s.wins + s.losses + s.draws),
                            0
                        ) AS win_rate
                 FROM user_stats s
                 JOIN users u ON u.id = s.user_id
-                WHERE s.mode = :mode
+                GROUP BY u.id, u.nickname
             )
             SELECT *
             FROM ranking
@@ -53,7 +53,6 @@ final class LeaderboardService
         ";
 
         $statement = $this->db->prepare($sql);
-        $statement->bindValue(':mode', 'classic');
         $statement->bindValue(':minimum_games', $minimumGames, PDO::PARAM_INT);
         $statement->execute();
 
@@ -73,7 +72,7 @@ final class LeaderboardService
         }
 
         return [
-            'mode' => 'classic',
+            'mode' => 'all',
             'sort' => $sort,
             'minimumGames' => $minimumGames,
             'items' => $items,

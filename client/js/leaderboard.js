@@ -5,7 +5,6 @@ const refreshButton = document.querySelector('#leaders-refresh');
 const message = document.querySelector('#leaders-message');
 const tableBody = document.querySelector('#leaders-body');
 const miniBody = document.querySelector('#mini-leaders-body');
-const miniMessage = document.querySelector('#mini-leaders-message');
 
 let requestNumber = 0;
 let miniRequestNumber = 0;
@@ -63,6 +62,7 @@ async function loadLeaders() {
     const sort = sortSelect.value;
     refreshButton.disabled = true;
     tableBody.replaceChildren();
+    message.hidden = false;
     message.textContent = 'Загружаем рейтинг…';
 
     try {
@@ -70,7 +70,8 @@ async function loadLeaders() {
         if (currentRequest !== requestNumber) return;
 
         renderLeaders(tableBody, data.items);
-        message.textContent = `Нужно не менее ${data.minimumGames} завершённых партий в классике.`;
+        message.textContent = '';
+        message.hidden = true;
     } catch (error) {
         if (currentRequest === requestNumber) {
             message.textContent = error.message;
@@ -91,11 +92,9 @@ async function loadMiniLeaders() {
         if (currentRequest !== miniRequestNumber) return;
 
         renderLeaders(miniBody, data.items.slice(0, 5), true);
-        miniMessage.textContent = `От ${data.minimumGames} партий в классике. Рейтинг по проценту побед.`;
     } catch {
         if (currentRequest === miniRequestNumber) {
             renderEmpty(miniBody, 4, 'Рейтинг недоступен');
-            miniMessage.textContent = 'Попробуй обновить страницу позже.';
         }
     }
 }
