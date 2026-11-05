@@ -86,7 +86,7 @@ final class GameTimeoutService
                 );
             } elseif ($row['mode'] === 'gobblers') {
                 $game->move(
-                    $state['currentPlayer'],
+                    $symbol,
                     $move['cell'],
                     $move['size'],
                     $move['from']
@@ -152,7 +152,7 @@ final class GameTimeoutService
             );
         } elseif ($row['mode'] === 'gobblers') {
             $game->move(
-                $symbol,
+                $state['currentPlayer'],
                 $move['cell'],
                 $move['size'],
                 $move['from']

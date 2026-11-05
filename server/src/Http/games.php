@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Http\ApiException;
 use App\Service\ClassicGameService;
+use App\Service\MatchmakingService;
 
 require_once __DIR__ . '/../Game/ClassicGame.php';
 require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/../Service/ClassicGameService.php';
+require_once __DIR__ . '/../Service/MatchmakingService.php';
 require_once __DIR__ . '/../Auth/gameAccount.php';
 require_once __DIR__ . '/../Service/GameResultService.php';
 require_once __DIR__ . '/../Service/GameTimeoutService.php';
@@ -168,6 +170,40 @@ function readMoveData(): array
 function handleGamesApi(string $path, string $method): never
 {
     try {
+        if (
+            $path === '/api/games/matchmaking'
+            || $path === '/api/games/matchmaking/cancel'
+        ) {
+            requireMethod($method, 'POST');
+
+            $db = getDatabaseConnection();
+            $userId = readGameAccount($db, true);
+
+            if ($userId === null) {
+                throw new ApiException(
+                    401,
+                    'Войдите в аккаунт, чтобы искать соперника.'
+                );
+            }
+
+            $matchmaking = new MatchmakingService($db);
+
+            if ($path === '/api/games/matchmaking/cancel') {
+                sendJson($matchmaking->cancel($userId));
+            }
+
+            $mode = $_GET['mode'] ?? 'classic';
+
+            if (!is_string($mode)) {
+                throw new ApiException(
+                    422,
+                    'Параметр mode должен быть строкой.'
+                );
+            }
+
+            sendJson($matchmaking->search($userId, $mode));
+        }
+
         $isCreate = $path === '/api/games';
         $isMine = $path === '/api/games/mine';
 

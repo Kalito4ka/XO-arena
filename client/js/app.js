@@ -42,6 +42,10 @@ const modeDescription = document.querySelector('#mode-description');
 const gobblersRoot = document.querySelector('#gobblers-board');
 const gobblersHint = document.querySelector('#gobblers-hint');
 
+const matchmakingStart = document.querySelector('#matchmaking-start');
+const matchmakingCancel = document.querySelector('#matchmaking-cancel');
+const matchmakingMessage = document.querySelector('#matchmaking-message');
+
 // объясняет выбранный режим и его ограничение времени
 function renderModeDescription() {
     const descriptions = {
@@ -62,6 +66,8 @@ let game = null;
 let busy = false;
 let synced = false;
 let storageReady = false;
+let searchMode = null;
+let searchTimer = null;
 
 let accountRevision = 0;
 let turnTimerDeadline = null;
@@ -75,6 +81,8 @@ function clearCurrentGame() {
 
 window.addEventListener('xo:account-changed', () => {
     accountRevision++;
+    stopMatchmaking();
+    matchmakingMessage.textContent = '';
 
     clearCurrentGame();
     render();
@@ -208,10 +216,32 @@ function renderTurnTimer() {
 
 // показывает состояние партии и поле соответствующего режима
 function render() {
-    createButton.disabled = busy || !storageReady;
-    modeSelect.disabled = busy || !storageReady;
-    joinButton.disabled = busy || !storageReady;
-    joinInput.disabled = busy || !storageReady;
+    const searching = searchMode !== null;
+    const controlsLocked = busy || !storageReady || searching;
+    const signedIn = getAccountSnapshot().user !== null;
+
+    createButton.disabled = controlsLocked;
+    modeSelect.disabled = controlsLocked;
+    joinButton.disabled = controlsLocked;
+    joinInput.disabled = controlsLocked;
+
+    matchmakingStart.hidden = searching;
+    matchmakingStart.disabled = controlsLocked || !signedIn;
+
+    matchmakingCancel.hidden = !searching;
+    matchmakingCancel.disabled = busy;
+
+    if (!signedIn) {
+        setText(
+            matchmakingMessage,
+            'Войди в аккаунт, чтобы найти соперника.',
+        );
+    } else if (
+        matchmakingMessage.textContent ===
+        'Войди в аккаунт, чтобы найти соперника.'
+    ) {
+        setText(matchmakingMessage, '');
+    }
 
     gamePanel.hidden = player === null;
 
@@ -458,6 +488,126 @@ async function gamePost(path, body = undefined) {
         body,
     });
 }
+
+// останавливает повторные запросы поиска
+function stopMatchmaking() {
+    window.clearTimeout(searchTimer);
+    searchTimer = null;
+    searchMode = null;
+}
+
+// загружает найденную партию и открывает её для участника
+async function openMatchedGame(gameId, revision) {
+    const data = await request(`/api/games/${gameId}`);
+
+    if (revision !== accountRevision) {
+        return;
+    }
+
+    enterGame(gameId, data);
+    stopMatchmaking();
+    setText(matchmakingMessage, 'Соперник найден.');
+}
+
+// обновляет заявку и открывает партию, когда найдена пара
+async function checkMatchmaking() {
+    if (searchMode === null) {
+        return;
+    }
+
+    if (busy) {
+        searchTimer = window.setTimeout(checkMatchmaking, 2000);
+        return;
+    }
+
+    const mode = searchMode;
+    const revision = accountRevision;
+
+    await run(async () => {
+        try {
+            const result = await gamePost(
+                `/api/games/matchmaking?mode=${encodeURIComponent(mode)}`,
+            );
+
+            if (revision !== accountRevision) {
+                return;
+            }
+
+            if (result.status === 'matched') {
+                await openMatchedGame(result.gameId, revision);
+                return;
+            }
+
+            if (result.status !== 'waiting') {
+                throw new Error('Сервер вернул неизвестный статус поиска.');
+            }
+
+            searchTimer = window.setTimeout(checkMatchmaking, 2000);
+        } catch (error) {
+            if (revision === accountRevision) {
+                stopMatchmaking();
+                setText(matchmakingMessage, error.message);
+            }
+        }
+    });
+}
+
+matchmakingStart.addEventListener('click', () => {
+    const account = getAccountSnapshot();
+
+    if (
+        busy
+        || !storageReady
+        || searchMode !== null
+        || !account.ready
+        || account.user === null
+    ) {
+        return;
+    }
+
+    searchMode = modeSelect.value;
+    setText(matchmakingMessage, 'Ищем соперника…');
+    void checkMatchmaking();
+});
+
+matchmakingCancel.addEventListener('click', () => {
+    if (busy || searchMode === null) {
+        return;
+    }
+
+    window.clearTimeout(searchTimer);
+    searchTimer = null;
+
+    const revision = accountRevision;
+
+    void run(async () => {
+        try {
+            const result = await gamePost(
+                '/api/games/matchmaking/cancel',
+            );
+
+            if (revision !== accountRevision) {
+                return;
+            }
+
+            if (result.status === 'matched') {
+                await openMatchedGame(result.gameId, revision);
+                return;
+            }
+
+            if (result.status !== 'cancelled') {
+                throw new Error('Сервер вернул неизвестный статус отмены.');
+            }
+
+            stopMatchmaking();
+            setText(matchmakingMessage, 'Поиск отменён.');
+        } catch (error) {
+            if (revision === accountRevision) {
+                setText(matchmakingMessage, error.message);
+            }
+        }
+    });
+});
 
 createButton.addEventListener('click', () => {
     const mode = modeSelect.value;
