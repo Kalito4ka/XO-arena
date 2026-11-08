@@ -773,7 +773,8 @@ async function sendMove(cell, boardIndex = null) {
 // открывает новую партию с прежним гостевым ключом или аккаунтом
 async function openRematch() {
     const nextId = game?.rematch.gameId;
-    if (!nextId || game.rematch.remainingSeconds <= 0) return;
+    // Срок ограничивает согласие, но не доступ к уже созданной партии.
+    if (!nextId) return;
 
     const previousId = player.id;
     const revision = accountRevision;
@@ -800,7 +801,11 @@ async function poll() {
             player === null
             || busy
             || document.hidden
-            || (game?.roomStatus === 'finished' && game.rematch.remainingSeconds <= 0)
+            || (
+                game?.roomStatus === 'finished'
+                && game.rematch.remainingSeconds <= 0
+                && !game.rematch.gameId
+            )
         ) {
             return;
         }

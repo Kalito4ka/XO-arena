@@ -131,6 +131,18 @@ try {
     checkRooms($queue->search($first['id'], 'ultimate')['gameId'] === $matched['gameId'],
         'Подбор создал повторную партию.');
 
+    checkRooms($queue->search($first['id'], 'gobblers')['status'] === 'waiting',
+        'Поиск в другом режиме вернул прежнюю партию.');
+    $otherMode = $queue->search($third['id'], 'gobblers');
+    checkRooms($otherMode['status'] === 'matched' && $otherMode['gameId'] !== $matched['gameId'],
+        'Поиск в другом режиме не создал отдельную партию.');
+    checkRooms($x->get($otherMode['gameId'], null)['game']['state']['mode'] === 'gobblers',
+        'Найденная партия не соответствует выбранному режиму.');
+    checkRooms($x->get($matched['gameId'], null)['game']['state']['mode'] === 'ultimate',
+        'Поиск в другом режиме изменил прежнюю партию.');
+    checkRooms($queue->search($first['id'], 'gobblers')['gameId'] === $otherMode['gameId'],
+        'Повторный поиск в новом режиме создал лишнюю партию.');
+
     $db->exec('DELETE FROM user_stats');
     $db->exec("INSERT INTO user_stats (user_id, mode, wins, losses, draws) VALUES
         ({$first['id']}, 'classic', 8, 2, 0),

@@ -112,7 +112,7 @@ try {
         checkEntity($matched['status'] === 'matched' && $game?->xUserId === $first->id
             && $game->oUserId === $second->id && $game->mode === $mode,
             'Подбор не создал партию нужного режима.');
-        checkEntity($queue->findMatched($first->id)?->gameId === $game->id
+        checkEntity($queue->findMatched($first->id, $mode)?->gameId === $game->id
             && $queue->find($second->id)?->isMatched() === true,
             'Заявки не связаны с найденной партией.');
         checkEntity($matchmaking->cancel($first->id)['gameId'] === $game->id,

@@ -32,7 +32,7 @@ final class MatchmakingService
         }
 
         return $this->transaction(function () use ($userId, $mode): array {
-            $existing = $this->queue->findMatched($userId);
+            $existing = $this->queue->findMatched($userId, $mode);
             if ($existing !== null) {
                 return ['status' => 'matched', 'gameId' => $existing->gameId];
             }

@@ -22,14 +22,15 @@ final class MatchmakingRepository
         return $row === false ? null : $this->hydrate($row);
     }
 
-    public function findMatched(int $userId): ?MatchmakingEntry
+    public function findMatched(int $userId, string $mode): ?MatchmakingEntry
     {
         $statement = $this->db->prepare(
             "SELECT q.* FROM matchmaking_queue q
              JOIN games g ON g.id = q.game_id
-             WHERE q.user_id = :user_id AND g.status = 'playing'"
+             WHERE q.user_id = :user_id AND g.status = 'playing'
+               AND g.mode = :mode AND q.mode = g.mode"
         );
-        $statement->execute(['user_id' => $userId]);
+        $statement->execute(['user_id' => $userId, 'mode' => $mode]);
         $row = $statement->fetch();
 
         return $row === false ? null : $this->hydrate($row);
