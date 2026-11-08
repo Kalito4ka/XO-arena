@@ -14,12 +14,15 @@ use PDO;
 use RuntimeException;
 use Throwable;
 
+require_once __DIR__ . '/GameRoomService.php';
+
 final class ClassicGameService
 {
     // понимает, от имени какого аккаунта выполняется запрос
     public function __construct(
         private PDO $db,
-        private ?int $userId = null
+        private ?int $userId = null,
+        private ?string $guestKey = null
     ) {
     }
 
@@ -39,41 +42,49 @@ final class ClassicGameService
             );
         }
 
-        $id = bin2hex(random_bytes(16));
-        $token = bin2hex(random_bytes(32));
+        return $this->transaction(function () use ($mode): array {
+            $rooms = new GameRoomService($this->db);
+            $rooms->preparePlayer($mode, $this->userId, $this->guestKey, null, true);
 
-        $statement = $this->db->prepare(
-            'INSERT INTO games (
-                id,
-                mode,
-                x_token_hash,
-                x_user_id
-            )
-            VALUES (
-                :id,
-                :mode,
-                :token_hash,
-                :user_id
-            )
-            RETURNING *'
-        );
+            $id = bin2hex(random_bytes(16));
+            $token = bin2hex(random_bytes(32));
 
-        $statement->execute([
-            'id' => $id,
-            'mode' => $mode,
-            'token_hash' => hash('sha256', $token),
-            'user_id' => $this->userId,
-        ]);
+            $statement = $this->db->prepare(
+                'INSERT INTO games (
+                    id,
+                    mode,
+                    x_token_hash,
+                    x_user_id,
+                    x_guest_key
+                )
+                VALUES (
+                    :id,
+                    :mode,
+                    :token_hash,
+                    :user_id,
+                    :guest_key
+                )
+                RETURNING *'
+            );
 
-        $row = $statement->fetch();
+            $statement->execute([
+                'id' => $id,
+                'mode' => $mode,
+                'token_hash' => hash('sha256', $token),
+                'user_id' => $this->userId,
+                'guest_key' => $this->guestKey,
+            ]);
 
-        return [
-            'game' => $this->view($row),
-            'symbol' => 'X',
-            'playerToken' => $this->userId === null
-                ? $token
-                : null,
-        ];
+            $row = $statement->fetch();
+
+            return [
+                'game' => $this->view($row),
+                'symbol' => 'X',
+                'playerToken' => $this->userId === null
+                    ? $token
+                    : null,
+            ];
+        });
     }
 
     public function join(string $id): array
@@ -109,13 +120,22 @@ final class ClassicGameService
                 );
             }
 
+            if ($this->guestKey !== null && $row['x_guest_key'] === $this->guestKey) {
+                throw new ApiException(409, 'Вы уже создали эту партию.');
+            }
+
+            (new GameRoomService($this->db))->preparePlayer(
+                $row['mode'], $this->userId, $this->guestKey, $id
+            );
+
             $token = bin2hex(random_bytes(32));
             $tokenHash = hash('sha256', $token);
 
-                        $statement = $this->db->prepare(
+            $statement = $this->db->prepare(
                 'UPDATE games
                 SET o_token_hash = :token_hash,
                     o_user_id = :user_id,
+                    o_guest_key = :guest_key,
                     updated_at = clock_timestamp()
                 WHERE id = :id
                 RETURNING *'
@@ -124,6 +144,7 @@ final class ClassicGameService
             $statement->execute([
                 'token_hash' => $tokenHash,
                 'user_id' => $this->userId,
+                'guest_key' => $this->guestKey,
                 'id' => $id,
             ]);
 
@@ -138,6 +159,101 @@ final class ClassicGameService
             ];
         });
     }
+
+    // принимает согласие участника и создаёт новую партию после двух согласий
+    public function rematch(string $id, ?string $token): array
+    {
+        return $this->transaction(function () use ($id, $token): array {
+            $row = $this->load($id, true);
+            $symbol = $this->identifyPlayer($row, $token);
+
+            if ($row['rematch_id'] !== null) {
+                return ['game' => $this->view($row), 'symbol' => $symbol];
+            }
+
+            if ($row['status'] === 'playing' || $this->rematchSeconds($row) <= 0) {
+                throw new ApiException(409, 'Время для повторной игры истекло.');
+            }
+
+            $rooms = new GameRoomService($this->db);
+            $rooms->checkAvailable($row['mode'], $this->userId, $this->guestKey);
+
+            $column = $symbol === 'X' ? 'rematch_x' : 'rematch_o';
+            $statement = $this->db->prepare(
+                "UPDATE games SET $column = TRUE
+                 WHERE id = :id
+                   AND finished_at + INTERVAL '30 seconds' > clock_timestamp()
+                 RETURNING *"
+            );
+            $statement->execute(['id' => $id]);
+            $row = $statement->fetch();
+
+            if ($row === false) {
+                throw new ApiException(409, 'Время для повторной игры истекло.');
+            }
+
+            if ($row['rematch_x'] && $row['rematch_o']) {
+                foreach (['x', 'o'] as $side) {
+                    $rooms->preparePlayer(
+                        $row['mode'],
+                        $row[$side . '_user_id'] === null
+                            ? null : (int) $row[$side . '_user_id'],
+                        $row[$side . '_guest_key']
+                    );
+                }
+
+                $nextId = bin2hex(random_bytes(16));
+                $statement = $this->db->prepare(
+                    'INSERT INTO games (
+                        id, mode, x_user_id, o_user_id,
+                        x_token_hash, o_token_hash, x_guest_key, o_guest_key,
+                        updated_at
+                     ) VALUES (
+                        :next_id, :mode, :x_user, :o_user,
+                        :x_token, :o_token, :x_guest, :o_guest,
+                        clock_timestamp()
+                     )'
+                );
+                $statement->execute([
+                    'next_id' => $nextId,
+                    'mode' => $row['mode'],
+                    'x_user' => $row['x_user_id'],
+                    'o_user' => $row['o_user_id'],
+                    'x_token' => $row['x_token_hash'],
+                    'o_token' => $row['o_token_hash'],
+                    'x_guest' => $row['x_guest_key'],
+                    'o_guest' => $row['o_guest_key'],
+                ]);
+
+                $statement = $this->db->prepare(
+                    'UPDATE games SET rematch_id = :next_id WHERE id = :id RETURNING *'
+                );
+                $statement->execute(['next_id' => $nextId, 'id' => $id]);
+                $row = $statement->fetch();
+            }
+
+            return ['game' => $this->view($row), 'symbol' => $symbol];
+        });
+    }
+
+    // отсчитывает тридцать секунд от завершения партии по часам базы
+    private function rematchSeconds(array $row): float
+    {
+        if ($row['finished_at'] === null) {
+            return 0;
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT GREATEST(0, EXTRACT(EPOCH FROM (
+                CAST(:finished_at AS timestamptz) + INTERVAL '30 seconds'
+                - clock_timestamp()
+            )))"
+        );
+        $statement->execute(['finished_at' => $row['finished_at']]);
+
+        return (float) $statement->fetchColumn();
+    }
+
 
     public function get(string $id, ?string $token): array
     {
@@ -343,6 +459,8 @@ final class ClassicGameService
         } else {
             $sql .= "
                 AND g.status = 'playing'
+                AND (g.o_token_hash IS NOT NULL
+                     OR g.created_at > clock_timestamp() - INTERVAL '3 minutes')
                 ORDER BY g.created_at DESC, g.id DESC
             ";
         }
@@ -398,7 +516,9 @@ final class ClassicGameService
     {
         $sql = 'SELECT *
                 FROM games
-                WHERE id = :id';
+                WHERE id = :id
+                  AND (o_token_hash IS NOT NULL
+                       OR created_at > clock_timestamp() - INTERVAL \'3 minutes\')';
 
         if ($lock) {
             $sql .= ' FOR UPDATE';
@@ -659,6 +779,12 @@ final class ClassicGameService
             'finishedAt' => $row['finished_at'],
             'endReason' => $row['end_reason'],
             'remainingSeconds' => $remainingSeconds,
+            'rematch' => [
+                'X' => (bool) $row['rematch_x'],
+                'O' => (bool) $row['rematch_o'],
+                'gameId' => $row['rematch_id'],
+                'remainingSeconds' => $this->rematchSeconds($row),
+            ],
         ];
     }
 
@@ -667,6 +793,7 @@ final class ClassicGameService
         $this->db->beginTransaction();
 
         try {
+            $this->db->query('SELECT pg_advisory_xact_lock(5819)');
             $result = $action();
 
             $this->db->commit();

@@ -13,21 +13,23 @@ final class LeaderboardService
 {
     public function __construct(private PDO $db) {}
 
-        // получает до 10 лидеров с минимум 10 завершёнными партиями
+    // получает до 25 лидеров с минимум 10 завершёнными партиями
     public function get(string $sort): array
     {
-        if (!in_array($sort, ['winRate', 'played'], true)) {
+        if (!in_array($sort, ['wins', 'played', 'winRate'], true)) {
             throw new ApiException(
                 422,
-                'Допустимая сортировка: winRate или played.'
+                'Допустимая сортировка: wins, played или winRate.'
             );
         }
 
         $minimumGames = 10;
 
-        $orderBy = $sort === 'winRate'
-            ? 'win_rate DESC, played DESC, user_id ASC'
-            : 'played DESC, win_rate DESC, user_id ASC';
+        $orderBy = match ($sort) {
+            'wins' => 'wins DESC, win_rate DESC, played DESC, user_id ASC',
+            'played' => 'played DESC, wins DESC, user_id ASC',
+            'winRate' => 'win_rate DESC, played DESC, user_id ASC',
+        };
 
         $sql = "
             WITH ranking AS (
@@ -49,7 +51,7 @@ final class LeaderboardService
             FROM ranking
             WHERE played >= :minimum_games
             ORDER BY $orderBy
-            LIMIT 10
+            LIMIT 25
         ";
 
         $statement = $this->db->prepare($sql);

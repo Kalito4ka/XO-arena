@@ -22,7 +22,7 @@ function handleLeaderboardApi(string $method): never
             );
         }
 
-        $sort = $_GET['sort'] ?? 'winRate';
+        $sort = $_GET['sort'] ?? 'wins';
 
         if (!is_string($sort)) {
             throw new ApiException(

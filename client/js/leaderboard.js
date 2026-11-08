@@ -88,7 +88,7 @@ async function loadMiniLeaders() {
     const currentRequest = ++miniRequestNumber;
 
     try {
-        const data = await request('/api/leaderboard?sort=winRate');
+        const data = await request('/api/leaderboard?sort=wins');
         if (currentRequest !== miniRequestNumber) return;
 
         renderLeaders(miniBody, data.items.slice(0, 5), true);

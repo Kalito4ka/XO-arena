@@ -7,9 +7,9 @@
         <meta name="description" content="Крестики-нолики онлайн: классика и ультимативный режим, партии с друзьями, история игр и рейтинг.">
         <title>Игры · XO-arena</title>
         <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-        <link rel="stylesheet" href="/style.css?v=gobblers-2">
-        <script type="module" src="/js/app.js?v=gobblers-2"></script>
-        <script type="module" src="/js/leaderboard.js?v=layout-3"></script>
+        <link rel="stylesheet" href="/style.css?v=rooms-1">
+        <script type="module" src="/js/app.js?v=rooms-1"></script>
+        <script type="module" src="/js/leaderboard.js?v=rooms-1"></script>
         <script type="module" src="/js/header.js"></script>
     </head>
     <body>
@@ -115,6 +115,10 @@
                                     aria-label="Пожирающее игровое поле и запас фишек"
                                     hidden
                                 ></div>
+                                <div id="rematch-panel" class="rematch-panel" hidden>
+                                    <button id="rematch-button" type="button">Играть снова</button>
+                                    <p id="rematch-message" class="mode-note" role="status"></p>
+                                </div>
                                 
                             </section>
                         </div>
@@ -127,7 +131,7 @@
                                 <div class="section-heading">
                                     <h2 id="mini-leaders-title">Лидеры</h2>
                                 </div>
-                                <p class="small-note">Топ по проценту побед во всех режимах</p>
+                                <p class="small-note">Топ-5 по количеству побед во всех режимах</p>
                                 <div class="table-scroll">
                                     <table class="mini-table">
                                         <caption class="visually-hidden">Первые пять игроков общего рейтинга</caption>

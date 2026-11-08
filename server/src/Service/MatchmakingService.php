@@ -8,6 +8,8 @@ use App\Http\ApiException;
 use PDO;
 use Throwable;
 
+require_once __DIR__ . '/GameRoomService.php';
+
 final class MatchmakingService
 {
     public function __construct(private PDO $db){}
@@ -43,6 +45,9 @@ final class MatchmakingService
                 ];
             }
 
+            $rooms = new GameRoomService($this->db);
+            $rooms->checkAvailable($mode, $userId, null);
+
             // если заявки нет, добавляем её
             // иначе, обновляем
             $statement = $this->db->prepare(
@@ -74,6 +79,14 @@ final class MatchmakingService
                    AND user_id <> :user_id
                    AND game_id IS NULL
                    AND seen_at > clock_timestamp() - INTERVAL '30 seconds'
+                   AND NOT EXISTS (
+                       SELECT 1 FROM games g
+                       WHERE g.status = 'playing'
+                         AND g.o_token_hash IS NOT NULL
+                         AND g.mode = matchmaking_queue.mode
+                         AND (g.x_user_id = matchmaking_queue.user_id
+                              OR g.o_user_id = matchmaking_queue.user_id)
+                   )
                  ORDER BY queued_at, user_id
                  LIMIT 1
                  FOR UPDATE"
@@ -90,6 +103,9 @@ final class MatchmakingService
 
                 return ['status' => 'waiting'];
             }
+
+            $rooms->preparePlayer($mode, $userId, null);
+            $rooms->preparePlayer($mode, (int) $opponentId, null);
 
             $gameId = bin2hex(random_bytes(16));
 
@@ -119,12 +135,16 @@ final class MatchmakingService
             ]);
 
             $statement = $this->db->prepare(
-                'UPDATE matchmaking_queue
-                 SET game_id = :game_id
-                 WHERE user_id IN (:first_user, :second_user)'
+                'INSERT INTO matchmaking_queue (user_id, mode, game_id)
+                 VALUES (:first_user, :first_mode, :first_game),
+                        (:second_user, :second_mode, :second_game)
+                 ON CONFLICT (user_id) DO UPDATE SET game_id = EXCLUDED.game_id'
             );
             $statement->execute([
-                'game_id' => $gameId,
+                'first_game' => $gameId,
+                'second_game' => $gameId,
+                'first_mode' => $mode,
+                'second_mode' => $mode,
                 'first_user' => (int) $opponentId,
                 'second_user' => $userId,
             ]);

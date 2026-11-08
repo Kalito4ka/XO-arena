@@ -1292,3 +1292,9 @@ tr:nth-child(3) .rank-number {
     padding: 5px 12px;
     margin-left: auto;
 }
+
+/* повторная игра под полем */
+.rematch-panel {
+    margin-top: 20px;
+    text-align: center;
+}

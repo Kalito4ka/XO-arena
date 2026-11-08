@@ -216,7 +216,7 @@ function handleGamesApi(string $path, string $method): never
             requireMethod($method, 'GET');
         } else {
             $matched = preg_match(
-                '~^/api/games/([a-f0-9]{32})(?:/(join|moves))?$~D',
+                '~^/api/games/([a-f0-9]{32})(?:/(join|moves|rematch))?$~D',
                 $path,
                 $matches
             );
@@ -241,7 +241,9 @@ function handleGamesApi(string $path, string $method): never
             $method === 'POST'
         );
 
-        $service = new ClassicGameService($db, $userId);
+        $service = new ClassicGameService(
+            $db, $userId, $userId === null ? hash('sha256', session_id()) : null
+        );
 
         if ($isCreate) {
             $mode = $_GET['mode'] ?? 'classic';
@@ -264,6 +266,10 @@ function handleGamesApi(string $path, string $method): never
 
         if ($action === 'join') {
             sendJson($service->join($id));
+        }
+
+        if ($action === 'rematch') {
+            sendJson($service->rematch($id, $token));
         }
 
         if ($action === 'moves') {

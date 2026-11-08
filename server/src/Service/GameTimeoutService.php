@@ -15,6 +15,8 @@ use PDO;
 use RuntimeException;
 use Throwable;
 
+require_once __DIR__ . '/GameRoomService.php';
+
 final class GameTimeoutService
 {
     public function __construct(private PDO $db)
@@ -187,6 +189,8 @@ final class GameTimeoutService
     // обрабатывает просроченные партии без запросов из браузера
     public function expireBatch(): int
     {
+        (new GameRoomService($this->db))->clearExpired();
+
         $statement = $this->db->query(
             "SELECT id
              FROM games

@@ -7,9 +7,9 @@
         <meta name="description" content="Крестики-нолики онлайн: классика и ультимативный режим, партии с друзьями, история игр и рейтинг.">
         <title>Лидеры · XO-arena</title>
         <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-        <link rel="stylesheet" href="/style.css?v=layout-3">
+        <link rel="stylesheet" href="/style.css?v=rooms-1">
         <script type="module" src="/js/auth.js?v=layout-3"></script>
-        <script type="module" src="/js/leaderboard.js?v=layout-3"></script>
+        <script type="module" src="/js/leaderboard.js?v=rooms-1"></script>
         <script type="module" src="/js/header.js"></script>
     </head>
     <body>
@@ -35,11 +35,11 @@
                 <section id="page-leaders" data-page="leaders" aria-labelledby="leaders-heading">
                     <div class="page-intro">
                         <h1 id="leaders-heading" tabindex="-1">Лидеры</h1>
-                        <p>Сравнивай результаты игроков по проценту побед или количеству партий.</p>
+                        <p>Сравнивай результаты игроков по количеству побед, партий или проценту побед.</p>
                     </div>
                     <section class="card leaders-card" aria-labelledby="leaders-title">
                         <div class="card-ribbon sage-ribbon">
-                            <span>все режимы / топ 10</span>
+                            <span>все режимы / топ 25</span>
                             <button id="leaders-refresh" class="secondary" type="button">Обновить ↻</button>
                         </div>
                         <div class="section-heading">
@@ -52,6 +52,7 @@
                             <div class="field">
                                 <label for="leaders-sort">Сортировка</label>
                                 <select id="leaders-sort">
+                                    <option value="wins">По количеству побед</option>
                                     <option value="winRate">По проценту побед</option>
                                     <option value="played">По количеству партий</option>
                                 </select>

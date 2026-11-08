@@ -28,6 +28,9 @@ const gamePanel = document.querySelector('#game-panel');
 const playerInfo = document.querySelector('#player-info');
 const turnInfo = document.querySelector('#turn-info');
 const turnTimer = document.querySelector('#turn-timer');
+const rematchPanel = document.querySelector('#rematch-panel');
+const rematchButton = document.querySelector('#rematch-button');
+const rematchMessage = document.querySelector('#rematch-message');
 
 const board = document.querySelector('#board');
 
@@ -69,12 +72,14 @@ let searchTimer = null;
 
 let accountRevision = 0;
 let turnTimerDeadline = null;
+let rematchDeadline = null;
 
 function clearCurrentGame() {
     player = null;
     game = null;
     synced = false;
     turnTimerDeadline = null;
+    rematchDeadline = null;
 }
 
 window.addEventListener('xo:account-changed', () => {
@@ -212,6 +217,23 @@ function renderTurnTimer() {
     );
 }
 
+// показывает кнопку повторной игры только в течение тридцати секунд
+function renderRematch() {
+    const remaining = rematchDeadline === null
+        ? 0 : Math.max(0, Math.ceil((rematchDeadline - performance.now()) / 1000));
+    const visible = player !== null && game?.roomStatus === 'finished'
+        && remaining > 0 && !game.rematch.gameId;
+
+    rematchPanel.hidden = !visible;
+    if (!visible) return;
+
+    const agreed = game.rematch[player.symbol];
+    rematchButton.disabled = busy || !synced || agreed;
+    setText(rematchMessage, agreed
+        ? `Ждём согласия соперника. Осталось ${remaining} с`
+        : `Сыграть ещё раз можно в течение ${remaining} с`);
+}
+
 // показывает состояние партии и поле соответствующего режима
 function render() {
     const searching = searchMode !== null;
@@ -244,6 +266,7 @@ function render() {
     gamePanel.hidden = player === null;
 
     renderTurnTimer();
+    renderRematch();
 
     if (player === null) {
         return;
@@ -377,7 +400,7 @@ async function run(action) {
     } catch (error) {
         synced = false;
 
-        if (error.status === 401 || error.status === 403) {
+        if ([401, 403, 404].includes(error.status)) {
             clearCurrentGame();
         }
 
@@ -399,7 +422,7 @@ async function run(action) {
 function applyState(data) {
     const wasFinished = game?.roomStatus === 'finished';
 
-        game = data.game;
+    game = data.game;
     player.symbol = data.symbol;
     synced = true;
 
@@ -409,6 +432,9 @@ function applyState(data) {
     )
         ? performance.now() + game.remainingSeconds * 1000
         : null;
+
+    rematchDeadline = game.rematch.remainingSeconds > 0
+        ? performance.now() + game.rematch.remainingSeconds * 1000 : null;
 
     if (!wasFinished && game.roomStatus === 'finished') {
         window.dispatchEvent(
@@ -462,6 +488,7 @@ async function refreshGame() {
     const wasOutOfSync = !synced;
 
     applyState(data);
+    await openRematch();
 
     if (wasOutOfSync) {
         setMessage('Актуальное состояние партии загружено.');
@@ -743,6 +770,29 @@ async function sendMove(cell, boardIndex = null) {
     });
 }
 
+// открывает новую партию с прежним гостевым ключом или аккаунтом
+async function openRematch() {
+    const nextId = game?.rematch.gameId;
+    if (!nextId || game.rematch.remainingSeconds <= 0) return;
+
+    const previousId = player.id;
+    const revision = accountRevision;
+    const token = player.token;
+    const data = await request(`/api/games/${nextId}`, { token });
+    if (player?.id !== previousId || revision !== accountRevision) return;
+
+    enterGame(nextId, { ...data, playerToken: token });
+    setMessage('Новая партия началась.');
+}
+
+rematchButton.addEventListener('click', () => {
+    void run(async () => {
+        const data = await gamePost(`/api/games/${player.id}/rematch`);
+        applyState(data);
+        await openRematch();
+    });
+});
+
 // получает состояние в фоне без блокировки выбора фишки
 async function poll() {
     try {
@@ -750,7 +800,7 @@ async function poll() {
             player === null
             || busy
             || document.hidden
-            || game?.roomStatus === 'finished'
+            || (game?.roomStatus === 'finished' && game.rematch.remainingSeconds <= 0)
         ) {
             return;
         }
@@ -777,6 +827,7 @@ async function poll() {
         const wasOutOfSync = !synced;
 
         applyState(data);
+        await openRematch();
         render();
 
         if (wasOutOfSync) {
@@ -784,6 +835,7 @@ async function poll() {
         }
     } catch (error) {
         if (!busy) {
+            if (error.status === 404) clearCurrentGame();
             synced = false;
             render();
             setMessage(error.message, true);
@@ -847,4 +899,7 @@ async function boot() {
 }
 
 void boot();
-window.setInterval(renderTurnTimer, 250);
+window.setInterval(() => {
+    renderTurnTimer();
+    renderRematch();
+}, 250);

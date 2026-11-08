@@ -46,7 +46,7 @@ final class AuthService
             if ($error->getCode() === '23505') {
                 throw new ApiException(
                     409,
-                    'Этот никнейм уже занят.'
+                    'Это имя пользователя уже занято.'
                 );
             }
 
