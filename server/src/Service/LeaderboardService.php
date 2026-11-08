@@ -8,10 +8,18 @@ namespace App\Service;
 
 use App\Http\ApiException;
 use PDO;
+use App\Repository\UserStatsRepository;
+
+require_once __DIR__ . '/../Repository/UserStatsRepository.php';
 
 final class LeaderboardService
 {
-    public function __construct(private PDO $db) {}
+    private UserStatsRepository $statistics;
+
+    public function __construct(PDO $db)
+    {
+        $this->statistics = new UserStatsRepository($db);
+    }
 
     // получает до 25 лидеров с минимум 10 завершёнными партиями
     public function get(string $sort): array
@@ -25,42 +33,9 @@ final class LeaderboardService
 
         $minimumGames = 10;
 
-        $orderBy = match ($sort) {
-            'wins' => 'wins DESC, win_rate DESC, played DESC, user_id ASC',
-            'played' => 'played DESC, wins DESC, user_id ASC',
-            'winRate' => 'win_rate DESC, played DESC, user_id ASC',
-        };
-
-        $sql = "
-            WITH ranking AS (
-                SELECT u.id AS user_id,
-                       u.nickname,
-                       SUM(s.wins) AS wins,
-                       SUM(s.losses) AS losses,
-                       SUM(s.draws) AS draws,
-                       SUM(s.wins + s.losses + s.draws) AS played,
-                       100.0 * SUM(s.wins) / NULLIF(
-                           SUM(s.wins + s.losses + s.draws),
-                           0
-                       ) AS win_rate
-                FROM user_stats s
-                JOIN users u ON u.id = s.user_id
-                GROUP BY u.id, u.nickname
-            )
-            SELECT *
-            FROM ranking
-            WHERE played >= :minimum_games
-            ORDER BY $orderBy
-            LIMIT 25
-        ";
-
-        $statement = $this->db->prepare($sql);
-        $statement->bindValue(':minimum_games', $minimumGames, PDO::PARAM_INT);
-        $statement->execute();
-
         $items = [];
 
-        foreach ($statement->fetchAll() as $index => $row) {
+        foreach ($this->statistics->leaderboard($sort, $minimumGames) as $index => $row) {
             $items[] = [
                 'position' => $index + 1,
                 'userId' => (int) $row['user_id'],

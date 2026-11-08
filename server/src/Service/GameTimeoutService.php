@@ -10,21 +10,27 @@ use App\Game\ClassicGame;
 use App\Game\UltimateGame;
 use App\Game\GobblersGame;
 
+use App\Entity\Game;
+use App\Repository\GameRepository;
 use LogicException;
 use PDO;
 use RuntimeException;
 use Throwable;
 
 require_once __DIR__ . '/GameRoomService.php';
+require_once __DIR__ . '/../Repository/GameRepository.php';
 
 final class GameTimeoutService
 {
+    private GameRepository $games;
+
     public function __construct(private PDO $db)
     {
+        $this->games = new GameRepository($db);
     }
 
     // делает случайный допустимый ход после окончания времени
-    public function expireLocked(array $row): array
+    public function expireLocked(Game $row): Game
     {
         if (!$this->db->inTransaction()) {
             throw new LogicException(
@@ -33,45 +39,17 @@ final class GameTimeoutService
         }
 
         if (
-            !in_array($row['mode'], ['classic', 'ultimate', 'gobblers'], true)
-            || $row['status'] !== 'playing'
-            || $row['o_token_hash'] === null
+            !in_array($row->mode, ['classic', 'ultimate', 'gobblers'], true)
+            || $row->status !== 'playing'
+            || $row->isWaiting()
         ) {
             return $row;
         }
 
-        $statement = $this->db->prepare(
-            "SELECT 1
-             FROM games
-             WHERE id = :id
-               AND updated_at + CASE mode
-                   WHEN 'classic' THEN INTERVAL '15 seconds'
+        if (!$this->games->isTurnExpired($row->id)) return $row;
+        $moves = $row->moves;
 
-                   WHEN 'gobblers' THEN INTERVAL '30 seconds'
-                   ELSE INTERVAL '45 seconds'
-               END <= clock_timestamp()"
-        );
-
-        $statement->execute(['id' => $row['id']]);
-
-        if ($statement->fetchColumn() === false) {
-            return $row;
-        }
-
-        $moves = json_decode(
-            $row['moves'],
-            true,
-            512,
-            JSON_THROW_ON_ERROR
-        );
-
-        if (!is_array($moves) || !array_is_list($moves)) {
-            throw new RuntimeException(
-                'В базе хранится некорректная история партии.'
-            );
-        }
-
-        $game = match ($row['mode']) {
+        $game = match ($row->mode) {
             'classic' => new ClassicGame(),
             'ultimate' => new UltimateGame(),
             'gobblers' => new GobblersGame(),
@@ -80,13 +58,13 @@ final class GameTimeoutService
         foreach ($moves as $index => $move) {
             $symbol = $index % 2 === 0 ? 'X' : 'O';
 
-            if ($row['mode'] === 'ultimate') {
+            if ($row->mode === 'ultimate') {
                 $game->move(
                     $symbol,
                     $move['board'],
                     $move['cell']
                 );
-            } elseif ($row['mode'] === 'gobblers') {
+            } elseif ($row->mode === 'gobblers') {
                 $game->move(
                     $symbol,
                     $move['cell'],
@@ -107,7 +85,7 @@ final class GameTimeoutService
             );
         }
 
-        if ($row['mode'] === 'ultimate') {
+        if ($row->mode === 'ultimate') {
             foreach ($state['boards'] as $board => $cells) {
                 if (
                     $state['boardStatuses'][$board] !== 'playing'
@@ -128,7 +106,7 @@ final class GameTimeoutService
                     }
                 }
             }
-        } elseif ($row['mode'] === 'gobblers') {
+        } elseif ($row->mode === 'gobblers') {
             $choices = $game->getLegalMoves();
         } else {
             foreach ($state['board'] as $cell => $value) {
@@ -146,13 +124,13 @@ final class GameTimeoutService
 
         $move = $choices[random_int(0, count($choices) - 1)];
 
-        if ($row['mode'] === 'ultimate') {
+        if ($row->mode === 'ultimate') {
             $game->move(
                 $state['currentPlayer'],
                 $move['board'],
                 $move['cell']
             );
-        } elseif ($row['mode'] === 'gobblers') {
+        } elseif ($row->mode === 'gobblers') {
             $game->move(
                 $state['currentPlayer'],
                 $move['cell'],
@@ -165,20 +143,7 @@ final class GameTimeoutService
 
         $moves[] = $move;
 
-        $statement = $this->db->prepare(
-            'UPDATE games
-             SET moves = CAST(:moves AS jsonb),
-                 updated_at = clock_timestamp()
-             WHERE id = :id
-             RETURNING *'
-        );
-
-        $statement->execute([
-            'moves' => json_encode($moves, JSON_THROW_ON_ERROR),
-            'id' => $row['id'],
-        ]);
-
-        $row = $statement->fetch();
+        $row = $this->games->saveMoves($row->id, $moves);
 
         return (new GameResultService($this->db))->record(
             $row,
@@ -191,45 +156,18 @@ final class GameTimeoutService
     {
         (new GameRoomService($this->db))->clearExpired();
 
-        $statement = $this->db->query(
-            "SELECT id
-             FROM games
-             WHERE mode IN ('classic', 'ultimate', 'gobblers')
-               AND status = 'playing'
-               AND o_token_hash IS NOT NULL
-               AND updated_at + CASE mode
-                   WHEN 'classic' THEN INTERVAL '15 seconds'
-
-                   WHEN 'gobblers' THEN INTERVAL '30 seconds'
-                   ELSE INTERVAL '45 seconds'
-               END
-                   <= clock_timestamp()
-             ORDER BY updated_at, id
-             LIMIT 100"
-        );
-
-        $ids = $statement->fetchAll(PDO::FETCH_COLUMN);
+        $ids = $this->games->expiredTurnIds();
         $count = 0;
 
         foreach ($ids as $id) {
             $this->db->beginTransaction();
 
             try {
-                $statement = $this->db->prepare(
-                    'SELECT *
-                     FROM games
-                     WHERE id = :id
-                     FOR UPDATE'
-                );
-
-                $statement->execute(['id' => $id]);
-
-                $row = $statement->fetch();
-
-                if ($row !== false) {
+                $row = $this->games->find($id, true, false);
+                if ($row !== null) {
                     $updated = $this->expireLocked($row);
 
-                    if ($row['moves'] !== $updated['moves']) {
+                    if ($row->moves !== $updated->moves) {
                         $count++;
                     }
                 }

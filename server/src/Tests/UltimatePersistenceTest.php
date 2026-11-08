@@ -8,9 +8,9 @@ require_once __DIR__ . '/../Game/UltimateGame.php';
 require_once __DIR__ . '/../Http/ApiException.php';
 require_once __DIR__ . '/../Service/GameResultService.php';
 require_once __DIR__ . '/../Service/GameTimeoutService.php';
-require_once __DIR__ . '/../Service/ClassicGameService.php';
+require_once __DIR__ . '/../Service/GameService.php';
 
-use App\Service\ClassicGameService;
+use App\Service\GameService;
 
 // останавливает проверку при неверном результате
 function checkUltimatePersistence(
@@ -26,7 +26,7 @@ $db = getDatabaseConnection();
 $id = null;
 
 try {
-    $service = new ClassicGameService($db);
+    $service = new GameService($db);
 
     $created = $service->create('ultimate');
 
@@ -39,7 +39,7 @@ try {
     $service->move($id, $xToken, 2, 0, 4);
     $service->move($id, $oToken, 4, 1, 2);
 
-    $reader = new ClassicGameService($db);
+    $reader = new GameService($db);
 
     $restored = $reader->get($id, $xToken);
     $state = $restored['game']['state'];

@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use App\Http\ApiException;
-use App\Service\ClassicGameService;
+use App\Service\GameService;
 use App\Service\MatchmakingService;
 
 require_once __DIR__ . '/../Game/ClassicGame.php';
 require_once __DIR__ . '/ApiException.php';
-require_once __DIR__ . '/../Service/ClassicGameService.php';
+require_once __DIR__ . '/../Service/GameService.php';
 require_once __DIR__ . '/../Service/MatchmakingService.php';
 require_once __DIR__ . '/../Auth/gameAccount.php';
 require_once __DIR__ . '/../Service/GameResultService.php';
@@ -241,7 +241,7 @@ function handleGamesApi(string $path, string $method): never
             $method === 'POST'
         );
 
-        $service = new ClassicGameService(
+        $service = new GameService(
             $db, $userId, $userId === null ? hash('sha256', session_id()) : null
         );
 

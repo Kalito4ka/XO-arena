@@ -8,7 +8,7 @@ require_once __DIR__ . '/../Game/ClassicGame.php';
 require_once __DIR__ . '/../Game/UltimateGame.php';
 require_once __DIR__ . '/../Game/GobblersGame.php';
 require_once __DIR__ . '/../Service/AuthService.php';
-require_once __DIR__ . '/../Service/ClassicGameService.php';
+require_once __DIR__ . '/../Service/GameService.php';
 require_once __DIR__ . '/../Service/GameResultService.php';
 require_once __DIR__ . '/../Service/GameTimeoutService.php';
 require_once __DIR__ . '/../Service/MatchmakingService.php';
@@ -16,7 +16,7 @@ require_once __DIR__ . '/../Service/LeaderboardService.php';
 
 use App\Http\ApiException;
 use App\Service\AuthService;
-use App\Service\ClassicGameService;
+use App\Service\GameService;
 use App\Service\GameTimeoutService;
 use App\Service\MatchmakingService;
 use App\Service\LeaderboardService;
@@ -63,9 +63,9 @@ try {
     );
     checkRooms($duplicate === 'Это имя пользователя уже занято.', 'Неверный текст ошибки имени.');
 
-    $x = new ClassicGameService($db, $first['id']);
-    $o = new ClassicGameService($db, $second['id']);
-    $other = new ClassicGameService($db, $third['id']);
+    $x = new GameService($db, $first['id']);
+    $o = new GameService($db, $second['id']);
+    $other = new GameService($db, $third['id']);
     $waiting = $x->create('classic')['game']['id'];
     expectRoomError(fn () => $x->create('classic'), 409);
     $replacement = $x->create('gobblers')['game']['id'];
@@ -108,8 +108,8 @@ try {
     expectRoomError(fn () => $o->rematch($id, null), 409);
     expectRoomError(fn () => $other->rematch($id, null), 403);
 
-    $guestX = new ClassicGameService($db, null, hash('sha256', 'guest-x'));
-    $guestO = new ClassicGameService($db, null, hash('sha256', 'guest-o'));
+    $guestX = new GameService($db, null, hash('sha256', 'guest-x'));
+    $guestO = new GameService($db, null, hash('sha256', 'guest-o'));
     $guestGame = $guestX->create();
     $guestId = $guestGame['game']['id'];
     $xToken = $guestGame['playerToken'];
@@ -144,8 +144,8 @@ try {
     expectRoomError(fn () => $leaders->get('invalid'), 422);
 
     foreach (['ultimate' => 45, 'gobblers' => 30] as $mode => $seconds) {
-        $left = new ClassicGameService($db, null, hash('sha256', $mode . '-left'));
-        $right = new ClassicGameService($db, null, hash('sha256', $mode . '-right'));
+        $left = new GameService($db, null, hash('sha256', $mode . '-left'));
+        $right = new GameService($db, null, hash('sha256', $mode . '-right'));
         $created = $left->create($mode);
         $modeId = $created['game']['id'];
         $leftToken = $created['playerToken'];

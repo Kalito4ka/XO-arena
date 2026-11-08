@@ -1,112 +1,60 @@
 <?php
 
-// класс регистрирует пользователей
-// проверяет данные при входе и ищет пользователя по ID
-
 declare(strict_types=1);
 
 namespace App\Service;
 
 use App\Http\ApiException;
+use App\Repository\UserRepository;
 use PDO;
 use PDOException;
 
+require_once __DIR__ . '/../Repository/UserRepository.php';
+
 final class AuthService
 {
-    public function __construct(private PDO $db){}
+    private UserRepository $users;
 
-    // регистрация пользователя
-    public function register(
-        string $nickname,
-        string $password
-    ): array {
+    public function __construct(PDO $db)
+    {
+        $this->users = new UserRepository($db);
+    }
+
+    public function register(string $nickname, string $password): array
+    {
         $nickname = trim($nickname);
-
         $this->validateNickname($nickname);
         $this->validatePassword($password);
 
-        $passwordHash = password_hash(
-            $password,
-            PASSWORD_DEFAULT
-        );
-
-        $statement = $this->db->prepare(
-            'INSERT INTO users (nickname, password_hash)
-             VALUES (:nickname, :password_hash)
-             RETURNING id, nickname, created_at'
-        );
-
         try {
-            $statement->execute([
-                'nickname' => $nickname,
-                'password_hash' => $passwordHash,
-            ]);
+            $user = $this->users->create($nickname, password_hash($password, PASSWORD_DEFAULT));
         } catch (PDOException $error) {
-            // нарушение уникальности
             if ($error->getCode() === '23505') {
-                throw new ApiException(
-                    409,
-                    'Это имя пользователя уже занято.'
-                );
+                throw new ApiException(409, 'Это имя пользователя уже занято.');
             }
-
             throw $error;
         }
 
-        return $this->publicUser($statement->fetch());
+        return $user->toPublicArray();
     }
 
-    // вход пользователя
-    public function login(
-        string $nickname,
-        string $password
-    ): array {
+    public function login(string $nickname, string $password): array
+    {
         $nickname = trim($nickname);
-
         $this->validateNickname($nickname);
         $this->validatePassword($password);
+        $user = $this->users->findByNickname($nickname);
 
-        $statement = $this->db->prepare(
-            'SELECT id, nickname, password_hash, created_at
-             FROM users
-             WHERE LOWER(nickname) = LOWER(:nickname)'
-        );
-
-        $statement->execute([
-            'nickname' => $nickname,
-        ]);
-
-        $row = $statement->fetch();
-
-        if (
-            $row === false
-            || !password_verify($password, $row['password_hash'])
-        ) {
-            throw new ApiException(
-                401,
-                'Неверный никнейм или пароль.'
-            );
+        if ($user === null || !$user->verifiesPassword($password)) {
+            throw new ApiException(401, 'Неверный никнейм или пароль.');
         }
 
-        return $this->publicUser($row);
+        return $user->toPublicArray();
     }
 
-    // поиск пользователя по числовому идентификатору
     public function find(int $id): ?array
     {
-        $statement = $this->db->prepare(
-            'SELECT id, nickname, created_at
-             FROM users
-             WHERE id = :id'
-        );
-
-        $statement->execute(['id' => $id]);
-
-        $row = $statement->fetch();
-
-        return $row === false
-            ? null
-            : $this->publicUser($row);
+        return $this->users->find($id)?->toPublicArray();
     }
 
     // внутренняя проверка никнейма
@@ -144,13 +92,4 @@ final class AuthService
         }
     }
 
-    // приводит строку из базы к формату ответа приложения
-    private function publicUser(array $row): array
-    {
-        return [
-            'id' => (int) $row['id'],
-            'nickname' => $row['nickname'],
-            'createdAt' => $row['created_at'],
-        ];
-    }
 }
