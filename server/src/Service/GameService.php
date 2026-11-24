@@ -7,16 +7,14 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\Game;
-use App\Repository\GameRepository;
-use App\Game\ClassicGame;
-use App\Game\UltimateGame;
-use App\Game\GobblersGame;
+use App\Game\GameHistory;
 use App\Http\ApiException;
+use App\Repository\GameRepository;
 use PDO;
-use RuntimeException;
 use Throwable;
 
 require_once __DIR__ . '/GameRoomService.php';
+require_once __DIR__ . '/../Game/GameHistory.php';
 require_once __DIR__ . '/../Repository/GameRepository.php';
 
 final class GameService
@@ -171,6 +169,7 @@ final class GameService
         ?int $size = null,
         ?int $from = null
     ): array {
+        // Для хода достаточно блокировки строки партии.
         return $this->transaction(
             function () use (
                 $id,
@@ -208,7 +207,7 @@ final class GameService
                     );
                 }
 
-                [$game, $moves] = $this->restore($row);
+                [$game, $moves] = GameHistory::restore($row);
 
                 if (count($moves) !== $expectedVersion) {
                     throw new ApiException(
@@ -279,7 +278,8 @@ final class GameService
                     'game' => $this->view($row),
                     'symbol' => $symbol,
                 ];
-            }
+            },
+            lockPlayers: false
         );
     }
 
@@ -384,112 +384,13 @@ final class GameService
         );
     }
 
-    // восстанавливает партию нужного режима из сохранённых ходов
-    private function restore(Game $row): array
-    {
-        $mode = $row->mode;
-
-        $game = match ($mode) {
-            'classic' => new ClassicGame(),
-            'ultimate' => new UltimateGame(),
-            'gobblers' => new GobblersGame(),
-
-            default => throw new RuntimeException(
-                'В базе указан неизвестный режим партии.'
-            ),
-        };
-
-        $moves = $row->moves;
-
-        $maximumMoves = match ($mode) {
-            'classic' => 9,
-            'ultimate' => 81,
-            'gobblers' => 100,
-        };
-
-        if (
-            !is_array($moves)
-            || !array_is_list($moves)
-            || count($moves) > $maximumMoves
-        ) {
-            throw new RuntimeException(
-                'В базе хранится некорректная история партии.'
-            );
-        }
-
-        foreach ($moves as $index => $move) {
-            $symbol = $index % 2 === 0 ? 'X' : 'O';
-
-            try {
-                if ($mode === 'ultimate') {
-                    if (
-                        !is_array($move)
-                        || count($move) !== 2
-                        || !isset($move['board'], $move['cell'])
-                        || !is_int($move['board'])
-                        || !is_int($move['cell'])
-                    ) {
-                        throw new RuntimeException(
-                            'Некорректный формат ультимативного хода.'
-                        );
-                    }
-
-                    $game->move(
-                        $symbol,
-                        $move['board'],
-                        $move['cell']
-                    );
-                } elseif ($mode === 'gobblers') {
-                    if (
-                        !is_array($move)
-                        || count($move) !== 3
-                        || !isset($move['cell'], $move['size'])
-                        || !is_int($move['cell'])
-                        || !is_int($move['size'])
-                        || !array_key_exists('from', $move)
-                        || (
-                            $move['from'] !== null
-                            && !is_int($move['from'])
-                        )
-                    ) {
-                        throw new RuntimeException(
-                            'Некорректный формат пожирающего хода.'
-                        );
-                    }
-
-                    $game->move(
-                        $symbol,
-                        $move['cell'],
-                        $move['size'],
-                        $move['from']
-                    );
-                } else {
-                    if (!is_int($move)) {
-                        throw new RuntimeException(
-                            'Некорректный формат классического хода.'
-                        );
-                    }
-
-                    $game->move($symbol, $move);
-                }
-            } catch (\DomainException | \InvalidArgumentException $error) {
-                throw new RuntimeException(
-                    'История партии нарушает правила игры.',
-                    0,
-                    $error
-                );
-            }
-        }
-
-        return [$game, $moves];
-    }
-
     private function view(Game $row): array
     {
-        [$game, $moves] = $this->restore($row);
+        [$game, $moves] = GameHistory::restore($row);
 
         $state = $game->getState();
 
+        // В старых партиях победа по времени не отражена в истории ходов.
         if ($row->endReason === 'timeout') {
             $state['status'] = 'won';
             $state['winner'] = $row->winner;
@@ -531,7 +432,6 @@ final class GameService
 
             'createdAt' => $row->createdAt,
             'finishedAt' => $row->finishedAt,
-            'endReason' => $row->endReason,
             'remainingSeconds' => $remainingSeconds,
             'rematch' => [
                 'X' => (bool) $row->rematchX,
@@ -542,12 +442,14 @@ final class GameService
         ];
     }
 
-    private function transaction(callable $action): array
+    private function transaction(callable $action, bool $lockPlayers = true): array
     {
         $this->db->beginTransaction();
 
         try {
-            $this->games->lockPlayers();
+            if ($lockPlayers) {
+                $this->games->lockPlayers();
+            }
             $result = $action();
 
             $this->db->commit();

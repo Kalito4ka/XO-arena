@@ -12,6 +12,12 @@ require_once __DIR__ . '/../Entity/Game.php';
 
 final class GameRepository
 {
+    private const TURN_DURATION_SQL = "CASE %s
+        WHEN 'classic' THEN INTERVAL '15 seconds'
+        WHEN 'ultimate' THEN INTERVAL '45 seconds'
+        WHEN 'gobblers' THEN INTERVAL '30 seconds'
+    END";
+
     public function __construct(private PDO $db) {}
 
     public function lockPlayers(): void
@@ -161,14 +167,10 @@ final class GameRepository
 
     public function remainingTurnSeconds(Game $game): float
     {
+        $duration = sprintf(self::TURN_DURATION_SQL, 'CAST(:mode AS text)');
         $statement = $this->db->prepare(
             "SELECT GREATEST(0, EXTRACT(EPOCH FROM (
-                CAST(:updated_at AS timestamptz)
-                + CASE CAST(:mode AS text)
-                    WHEN 'classic' THEN INTERVAL '15 seconds'
-                    WHEN 'gobblers' THEN INTERVAL '30 seconds'
-                    ELSE INTERVAL '45 seconds'
-                  END - clock_timestamp()
+                CAST(:updated_at AS timestamptz) + $duration - clock_timestamp()
             )))"
         );
         $statement->execute(['updated_at' => $game->updatedAt, 'mode' => $game->mode]);
@@ -178,13 +180,10 @@ final class GameRepository
 
     public function isTurnExpired(string $id): bool
     {
+        $duration = sprintf(self::TURN_DURATION_SQL, 'mode');
         $statement = $this->db->prepare(
             "SELECT 1 FROM games WHERE id = :id
-             AND updated_at + CASE mode
-                 WHEN 'classic' THEN INTERVAL '15 seconds'
-                 WHEN 'gobblers' THEN INTERVAL '30 seconds'
-                 ELSE INTERVAL '45 seconds'
-             END <= clock_timestamp()"
+             AND updated_at + $duration <= clock_timestamp()"
         );
         $statement->execute(['id' => $id]);
 
@@ -193,15 +192,12 @@ final class GameRepository
 
     public function expiredTurnIds(): array
     {
+        $duration = sprintf(self::TURN_DURATION_SQL, 'mode');
         $statement = $this->db->query(
             "SELECT id FROM games
              WHERE mode IN ('classic', 'ultimate', 'gobblers')
                AND status = 'playing' AND o_token_hash IS NOT NULL
-               AND updated_at + CASE mode
-                   WHEN 'classic' THEN INTERVAL '15 seconds'
-                   WHEN 'gobblers' THEN INTERVAL '30 seconds'
-                   ELSE INTERVAL '45 seconds'
-               END <= clock_timestamp()
+               AND updated_at + $duration <= clock_timestamp()
              ORDER BY updated_at, id LIMIT 100"
         );
 

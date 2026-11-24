@@ -47,12 +47,12 @@ const matchmakingStart = document.querySelector('#matchmaking-start');
 const matchmakingCancel = document.querySelector('#matchmaking-cancel');
 const matchmakingMessage = document.querySelector('#matchmaking-message');
 
-// объясняет выбранный режим и его ограничение времени
+// объясняет правила выбранного режима
 function renderModeDescription() {
     const descriptions = {
-        classic: 'Собери три символа в ряд. На ход — 15 секунд.',
-        ultimate: 'Девять связанных полей. На ход — 45 секунд.',
-        gobblers: 'Накрывай меньшие фишки и перемещай свои. На ход — 30 секунд.',
+        classic: 'Собери три символа в ряд.',
+        ultimate: 'Девять связанных полей. Выиграй три поля в ряд.',
+        gobblers: 'Накрывай меньшие фишки и перемещай свои.',
     };
 
     modeDescription.textContent = descriptions[modeSelect.value];
@@ -309,15 +309,9 @@ function render() {
     } else if (game.roomStatus === 'waiting') {
         turnText = 'Ожидаем второго игрока.';
     } else if (game.state.status === 'won') {
-        if (game.endReason === 'timeout') {
-            turnText = game.state.winner === player.symbol
-                ? `Победа! Соперник не сделал ход за ${game.state.mode === 'classic' ? 15 : 45} секунд.`
-                : 'Поражение по времени: срок хода истёк.';
-        } else {
-            turnText = game.state.winner === player.symbol
-                ? 'Победа!'
-                : `Победил ${game.state.winner}.`;
-        }
+        turnText = game.state.winner === player.symbol
+            ? 'Победа!'
+            : `Победил ${game.state.winner}.`;
     } else if (game.state.status === 'draw') {
         turnText = 'Ничья!';
     } else {

@@ -113,12 +113,6 @@ async function refreshAccount() {
     const data = await request('/api/auth/me');
 
     applyAccount(data);
-
-    setMessage(
-        user === null
-            ? 'Войди в аккаунт или продолжай играть гостем.'
-            : '',
-    );
 }
 
 // читает никнейм и пароль из указанной формы и возвращает объект

@@ -11,10 +11,6 @@ ini_set('zend.exception_ignore_args', '1');
 
 require_once __DIR__ . '/../database.php';
 
-require_once __DIR__ . '/../Game/ClassicGame.php';
-require_once __DIR__ . '/../Game/UltimateGame.php';
-require_once __DIR__ . '/../Game/GobblersGame.php';
-
 require_once __DIR__ . '/../Service/GameResultService.php';
 require_once __DIR__ . '/../Service/GameTimeoutService.php';
 

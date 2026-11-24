@@ -58,7 +58,6 @@ if ($path === '/api/leaderboard') {
 $knownPaths = [
     '/api/health',
     '/api/health/database',
-    '/api/game-modes',
 ];
 
 if (!in_array($path, $knownPaths, true)) {
@@ -106,28 +105,4 @@ switch ($path) {
                 503
             );
         }
-
-    case '/api/game-modes':
-        sendJson([
-            'modes' => [
-                [
-                    'id' => 'classic',
-                    'name' => 'Классика',
-                    'description' =>
-                        'Поле 3×3. Соберите три своих символа в ряд.',
-                ],
-                [
-                    'id' => 'ultimate',
-                    'name' => 'Ультимативный',
-                    'description' =>
-                        'Девять маленьких полей. Выиграйте три поля в ряд.',
-                ],
-                [
-                    'id' => 'gobblers',
-                    'name' => 'Пожирающий',
-                    'description' =>
-                        'Фишки трёх размеров. Накрывайте меньшие и перемещайте свои.',
-                ],
-            ],
-        ]);
 }

@@ -6,15 +6,12 @@ use App\Http\ApiException;
 use App\Service\GameService;
 use App\Service\MatchmakingService;
 
-require_once __DIR__ . '/../Game/ClassicGame.php';
 require_once __DIR__ . '/ApiException.php';
 require_once __DIR__ . '/../Service/GameService.php';
 require_once __DIR__ . '/../Service/MatchmakingService.php';
 require_once __DIR__ . '/../Auth/gameAccount.php';
 require_once __DIR__ . '/../Service/GameResultService.php';
 require_once __DIR__ . '/../Service/GameTimeoutService.php';
-require_once __DIR__ . '/../Game/UltimateGame.php';
-require_once __DIR__ . '/../Game/GobblersGame.php';
 
 function requireMethod(string $actual, string $allowed): void
 {

@@ -281,7 +281,6 @@ final class GobblersGame
             'status' => $this->status,
             'winner' => $this->winner,
             'winningLine' => $this->winningLine,
-            'moveCount' => $this->moveCount,
         ];
     }
 }

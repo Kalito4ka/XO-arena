@@ -105,7 +105,7 @@ final class MatchmakingRepository
     private function hydrate(array $row): MatchmakingEntry
     {
         return new MatchmakingEntry(
-            (int) $row['user_id'], $row['mode'], $row['game_id'], $row['queued_at'], $row['seen_at']
+            (int) $row['user_id'], $row['mode'], $row['game_id']
         );
     }
 }

@@ -6,11 +6,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Game\ClassicGame;
-use App\Game\UltimateGame;
-use App\Game\GobblersGame;
-
 use App\Entity\Game;
+use App\Game\GameHistory;
 use App\Repository\GameRepository;
 use LogicException;
 use PDO;
@@ -18,6 +15,7 @@ use RuntimeException;
 use Throwable;
 
 require_once __DIR__ . '/GameRoomService.php';
+require_once __DIR__ . '/../Game/GameHistory.php';
 require_once __DIR__ . '/../Repository/GameRepository.php';
 
 final class GameTimeoutService
@@ -47,34 +45,7 @@ final class GameTimeoutService
         }
 
         if (!$this->games->isTurnExpired($row->id)) return $row;
-        $moves = $row->moves;
-
-        $game = match ($row->mode) {
-            'classic' => new ClassicGame(),
-            'ultimate' => new UltimateGame(),
-            'gobblers' => new GobblersGame(),
-        };
-
-        foreach ($moves as $index => $move) {
-            $symbol = $index % 2 === 0 ? 'X' : 'O';
-
-            if ($row->mode === 'ultimate') {
-                $game->move(
-                    $symbol,
-                    $move['board'],
-                    $move['cell']
-                );
-            } elseif ($row->mode === 'gobblers') {
-                $game->move(
-                    $symbol,
-                    $move['cell'],
-                    $move['size'],
-                    $move['from']
-                );
-            } else {
-                $game->move($symbol, $move);
-            }
-        }
+        [$game, $moves] = GameHistory::restore($row);
 
         $state = $game->getState();
         $choices = [];

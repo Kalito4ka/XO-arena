@@ -65,7 +65,7 @@ final class GameResultService
             'wins' => $stats->wins,
             'losses' => $stats->losses,
             'draws' => $stats->draws,
-            'winRate' => $stats->played() === 0 ? 0 : $stats->winRate(),
+            'winRate' => $stats->winRate(),
         ];
     }
 }

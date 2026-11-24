@@ -10,8 +10,6 @@ final readonly class MatchmakingEntry
         public int $userId,
         public string $mode,
         public ?string $gameId,
-        public string $queuedAt,
-        public string $seenAt,
     ) {}
 
     public function isMatched(): bool
